@@ -104,6 +104,14 @@ class WsStore {
   String get serial => _serial;
   bool get isConnected => _connected;
 
+  // Setters for fields modified by pages
+  set currentOutput(String v) { _currentOutput = v; _notifyListeners(); }
+  void setEndpointBeforeDelayRandom(int v) { _endpointBeforeDelayRandom = v; _notifyListeners(); }
+  void setEndpointBeforeDelay(int v) { _endpointBeforeDelay = v; _notifyListeners(); }
+  void setEndpointDelay(int v) { _endpointDelay = v; _notifyListeners(); }
+  void setMode(int v) { _mode = v; _notifyListeners(); }
+  void setEndpointDynamicMode(int v) { _endpointDynamicMode = v; _notifyListeners(); }
+
   String getKeyName(String code) {
     if (code.isEmpty) return '';
     final key = code.toUpperCase().padLeft(2, '0');
