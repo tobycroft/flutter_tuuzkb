@@ -1,4 +1,3 @@
-  ```yaml
   name: Flutter Android Release
 
 
@@ -585,4 +584,3 @@
             ls -lh release/*.aab
             echo
             echo "=========================================="
-    ```
