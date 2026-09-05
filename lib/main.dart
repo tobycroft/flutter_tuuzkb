@@ -49,7 +49,10 @@ class _TuuzKBAppState extends State<TuuzKBApp> {
       ),
       home: Scaffold(
         backgroundColor: const Color(0xFF0D0D0D),
-        body: _pages[_currentIndex],
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _pages,
+        ),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (index) => setState(() => _currentIndex = index),

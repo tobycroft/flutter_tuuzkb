@@ -23,11 +23,12 @@ class _SettingsPageState extends State<SettingsPage> {
   final TextEditingController _prodController = TextEditingController();
   final TextEditingController _serialController = TextEditingController();
   Timer? _cfggetTimer;
+  void Function()? _unsubscribe;
 
   @override
   void initState() {
     super.initState();
-    ws.subscribe(_onStateChange);
+    _unsubscribe = ws.subscribe(_onStateChange);
     // Sync initial values from store
     _vidController.text = ws.vid;
     _pidController.text = ws.pid;
@@ -38,6 +39,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
+    _unsubscribe?.call();
     _cfggetTimer?.cancel();
     _vidController.dispose();
     _pidController.dispose();
@@ -171,9 +173,8 @@ class _SettingsPageState extends State<SettingsPage> {
                             backgroundColor: selected
                                 ? Color(0xFF3CC51F)
                                 : Color(0xFF2C2C2E),
-                            foregroundColor: selected
-                                ? Colors.white
-                                : Color(0xFFDDDDDD),
+                            foregroundColor:
+                                selected ? Colors.white : Color(0xFFDDDDDD),
                             padding: EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),

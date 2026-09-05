@@ -233,9 +233,8 @@ class _OutputAndInfoPanel extends StatelessWidget {
                             backgroundColor: selected
                                 ? Color(0xFF3CC51F)
                                 : Color(0xFF2C2C2E),
-                            foregroundColor: selected
-                                ? Colors.white
-                                : Color(0xFFDDDDDD),
+                            foregroundColor:
+                                selected ? Colors.white : Color(0xFFDDDDDD),
                             padding: EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),

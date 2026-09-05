@@ -13,16 +13,18 @@ class ConnectionPage extends StatefulWidget {
 class _ConnectionPageState extends State<ConnectionPage> {
   final WsStore ws = WsStore();
   final TextEditingController _ipController = TextEditingController();
+  void Function()? _unsubscribe;
 
   @override
   void initState() {
     super.initState();
-    ws.subscribe(_onStateChange);
+    _unsubscribe = ws.subscribe(_onStateChange);
     _loadSavedIp();
   }
 
   @override
   void dispose() {
+    _unsubscribe?.call();
     _ipController.dispose();
     super.dispose();
   }
