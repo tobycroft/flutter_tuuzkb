@@ -9,67 +9,67 @@
 
     workflow_dispatch:
 
-  # ------------------------------------------------------------
+  # ============================================================
   # GitHub Actions permissions
-  # ------------------------------------------------------------
+  # ============================================================
   permissions:
     contents: write
 
-  # ------------------------------------------------------------
-  # Prevent multiple builds of the same ref from running
-  # simultaneously.
-  # ------------------------------------------------------------
+  # ============================================================
+  # Avoid duplicate builds
+  # ============================================================
   concurrency:
     group: flutter-build-${{ github.ref }}
     cancel-in-progress: true
 
   jobs:
     build:
-      name: Flutter Android Build
+      name: Build Flutter Android APK
       runs-on: ubuntu-latest
 
       steps:
-        # ==========================================================
-        # 1. Checkout source
-        # ==========================================================
+
+        # ========================================================
+        # 1. Checkout source code
+        # ========================================================
         - name: Checkout
           uses: actions/checkout@v4
           with:
             fetch-depth: 0
 
-        # ==========================================================
-        # 2. Configure Java
-        #
-        # Android Gradle Plugin 8.x requires Java 17.
-        # ==========================================================
-        - name: Set up JDK 17
+        # ========================================================
+        # 2. Setup Java 17
+        # ========================================================
+        - name: Setup JDK 17
           uses: actions/setup-java@v4
           with:
             distribution: temurin
             java-version: "17"
             cache: gradle
 
-        # ==========================================================
-        # 3. Configure Flutter
-        # ==========================================================
-        - name: Set up Flutter
+        # ========================================================
+        # 3. Setup Flutter 3.27.0
+        # ========================================================
+        - name: Setup Flutter 3.27.0
           uses: subosito/flutter-action@v2
           with:
             flutter-version: "3.27.0"
             channel: stable
             cache: true
 
-        # ==========================================================
-        # 4. Configure Android SDK
-        #
-        # ubuntu-latest already contains Android SDK, but we explicitly
-        # install the required components to make the CI environment
-        # deterministic.
-        # ==========================================================
-        - name: Set up Android SDK
+        # ========================================================
+        # 4. Setup Android SDK
+        # ========================================================
+        - name: Setup Android SDK
           uses: android-actions/setup-android@v3
 
-        - name: Install Android SDK components
+        # ========================================================
+        # 5. Install Android SDK components
+        #
+        # Flutter 3.27.0 Android builds use Android SDK.
+        # API 35 is used here as the compile SDK.
+        # ========================================================
+        - name: Install Android SDK
           run: |
             sdkmanager --install \
               "platform-tools" \
@@ -78,64 +78,74 @@
             
             yes | sdkmanager --licenses >/dev/null || true
 
-        # ==========================================================
-        # 5. Display complete build environment
-        # ==========================================================
-        - name: Show build environment
+        # ========================================================
+        # 6. Check build environment
+        # ========================================================
+        - name: Check build environment
+          shell: bash
           run: |
-            echo "=================================================="
+            set -e
+            
+            echo "=============================================="
             echo "Flutter"
-            echo "=================================================="
+            echo "=============================================="
             flutter --version
             
             echo
-            echo "=================================================="
+            echo "=============================================="
             echo "Dart"
-            echo "=================================================="
+            echo "=============================================="
             dart --version
             
             echo
-            echo "=================================================="
+            echo "=============================================="
             echo "Java"
-            echo "=================================================="
+            echo "=============================================="
             java -version
             
             echo
-            echo "=================================================="
+            echo "=============================================="
             echo "Android SDK"
-            echo "=================================================="
+            echo "=============================================="
             echo "ANDROID_HOME=$ANDROID_HOME"
             echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
             
             echo
-            echo "=================================================="
-            echo "Android SDK Packages"
-            echo "=================================================="
+            echo "=============================================="
+            echo "Android SDK packages"
+            echo "=============================================="
+            
             sdkmanager --list_installed | grep -E \
               "platform-tools|platforms;android-35|build-tools;35.0.0" || true
             
             echo
-            echo "=================================================="
+            echo "=============================================="
             echo "Gradle Wrapper"
-            echo "=================================================="
+            echo "=============================================="
             
-            if [ -f android/gradle/wrapper/gradle-wrapper.properties ]; then
-              cat android/gradle/wrapper/gradle-wrapper.properties
-            else
-              echo "gradle-wrapper.properties not found"
+            if [ ! -f "android/gradle/wrapper/gradle-wrapper.properties" ]; then
+              echo "::error::android/gradle/wrapper/gradle-wrapper.properties not found."
+              exit 1
             fi
+            
+            cat android/gradle/wrapper/gradle-wrapper.properties
 
-        # ==========================================================
-        # 6. Configure Gradle
+        # ========================================================
+        # 7. Configure Gradle 8.13
         #
-        # AGP 8.13.x requires Gradle 8.13.
+        # This is required for AGP 8.13.x.
         #
-        # We modify only the Gradle distribution URL.
-        # We do NOT downgrade AGP/Kotlin/dependencies.
-        # ==========================================================
+        # We only change the Gradle distribution URL.
+        # We DO NOT modify:
+        #
+        # - pubspec.yaml
+        # - AGP version
+        # - Kotlin version
+        # ========================================================
         - name: Configure Gradle 8.13
+          shell: bash
           run: |
-            test -f android/gradle/wrapper/gradle-wrapper.properties
+            set -e
             
             sed -i \
               's#^distributionUrl=.*#distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-all.zip#' \
@@ -145,83 +155,118 @@
             grep "^distributionUrl=" \
               android/gradle/wrapper/gradle-wrapper.properties
 
-        # ==========================================================
-        # 7. Make gradlew executable if it exists
-        #
-        # Flutter projects normally contain gradlew.
-        # We do not generate it here.
-        # ==========================================================
+        # ========================================================
+        # 8. Prepare Gradle wrapper
+        # ========================================================
         - name: Prepare Gradle wrapper
-          run: |
-            if [ -f android/gradlew ]; then
-              chmod +x android/gradlew
-              echo "Gradle wrapper found."
-            else
-              echo "::warning::android/gradlew is missing."
-            fi
-
-        # ==========================================================
-        # 8. Flutter doctor
-        # ==========================================================
-        - name: Flutter doctor
-          run: |
-            flutter doctor -v
-
-        # ==========================================================
-        # 9. Clean previous build
-        # ==========================================================
-        - name: Flutter clean
-          run: flutter clean
-
-        # ==========================================================
-        # 10. Resolve Dart / Flutter dependencies
-        # ==========================================================
-        - name: Install dependencies
-          run: flutter pub get
-
-        # ==========================================================
-        # 11. Static analysis
-        # ==========================================================
-        - name: Analyze
-          run: flutter analyze
-
-        # ==========================================================
-        # 12. Build release APK
-        # ==========================================================
-        - name: Build release APK
-          run: |
-            flutter build apk \
-              --release \
-              --verbose
-
-        # ==========================================================
-        # 13. Prepare release files
-        # ==========================================================
-        - name: Prepare APK
+          shell: bash
           run: |
             set -e
             
-            mkdir -p release
-            
-            APK="build/app/outputs/flutter-apk/app-release.apk"
-            
-            if [ ! -f "$APK" ]; then
-              echo "::error::APK was not generated."
+            if [ ! -f "android/gradlew" ]; then
+              echo "::error::android/gradlew is missing."
+              echo
+              echo "Your Flutter Android project must contain:"
+              echo "  android/gradlew"
+              echo "  android/gradlew.bat"
+              echo "  android/gradle/wrapper/gradle-wrapper.jar"
+              echo "  android/gradle/wrapper/gradle-wrapper.properties"
               exit 1
             fi
             
+            chmod +x android/gradlew
+            
+            echo "Gradle wrapper:"
+            ls -lh android/gradlew
+
+        # ========================================================
+        # 9. Verify Gradle
+        # ========================================================
+        - name: Verify Gradle
+          working-directory: android
+          shell: bash
+          run: |
+            set -e
+            
+            ./gradlew --version
+
+        # ========================================================
+        # 10. Flutter Doctor
+        # ========================================================
+        - name: Flutter Doctor
+          shell: bash
+          run: |
+            flutter doctor -v
+
+        # ========================================================
+        # 11. Clean Flutter project
+        # ========================================================
+        - name: Flutter Clean
+          shell: bash
+          run: |
+            flutter clean
+
+        # ========================================================
+        # 12. Install Dart / Flutter dependencies
+        # ========================================================
+        - name: Install dependencies
+          shell: bash
+          run: |
+            flutter pub get
+
+        # ========================================================
+        # 13. Analyze project
+        # ========================================================
+        - name: Analyze
+          shell: bash
+          run: |
+            flutter analyze
+
+        # ========================================================
+        # 14. Build release APK
+        # ========================================================
+        - name: Build release APK
+          shell: bash
+          run: |
+            flutter build apk --release
+
+        # ========================================================
+        # 15. Prepare release APK
+        # ========================================================
+        - name: Prepare APK
+          shell: bash
+          run: |
+            set -e
+            
+            APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
+            RELEASE_DIR="release"
+            RELEASE_APK="$RELEASE_DIR/flutter_tuuzkb-release.apk"
+            
+            if [ ! -f "$APK_PATH" ]; then
+              echo "::error::Flutter build completed but APK was not found."
+              echo
+              echo "Expected:"
+              echo "$APK_PATH"
+              exit 1
+            fi
+            
+            mkdir -p "$RELEASE_DIR"
+            
             cp \
-              "$APK" \
-              "release/flutter_tuuzkb-release.apk"
+              "$APK_PATH" \
+              "$RELEASE_APK"
             
             echo
-            echo "APK generated successfully:"
-            ls -lh release/flutter_tuuzkb-release.apk
+            echo "=============================================="
+            echo "APK generated successfully"
+            echo "=============================================="
+            
+            ls -lh "$RELEASE_APK"
 
-        # ==========================================================
-        # 14. Upload GitHub Actions Artifact
-        # ==========================================================
-        - name: Upload APK artifact
+        # ========================================================
+        # 16. Upload GitHub Actions Artifact
+        # ========================================================
+        - name: Upload APK Artifact
           uses: actions/upload-artifact@v4
           with:
             name: flutter_tuuzkb-release
@@ -229,15 +274,15 @@
             if-no-files-found: error
             retention-days: 30
 
-        # ==========================================================
-        # 15. Create GitHub Release
+        # ========================================================
+        # 17. Create GitHub Release
         #
-        # Only triggered by:
+        # Runs only when pushing a tag:
         #
         #   v1.0.0
-        #   v1.2.3
+        #   v1.2.0
         #   v2.0.0-beta.1
-        # ==========================================================
+        # ========================================================
         - name: Create GitHub Release
           if: startsWith(github.ref, 'refs/tags/')
           uses: softprops/action-gh-release@v2
@@ -246,13 +291,14 @@
             generate_release_notes: true
             fail_on_unmatched_files: true
 
-        # ==========================================================
-        # 16. Commit APK to main
+        # ========================================================
+        # 18. Commit APK back to main
         #
-        # Only runs on main branch.
-        # ==========================================================
+        # Runs only for normal pushes to main.
+        # ========================================================
         - name: Commit APK to main
           if: github.ref == 'refs/heads/main'
+          shell: bash
           run: |
             set -e
             
