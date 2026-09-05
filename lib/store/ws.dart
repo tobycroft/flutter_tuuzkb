@@ -147,6 +147,8 @@ class WsStore {
   bool _connected = false;
   Timer? _heartbeatTimer;
   Timer? _reconnectTimer;
+  Timer? _pongTimeoutTimer;
+  bool _waitingForPong = false;
   String _lastUrl = '';
   String _connectionMessage = '未连接';
   String _connectionClass = 'status-failed';
@@ -290,6 +292,11 @@ class WsStore {
           requestInfo();
           return;
         }
+        if (event == 'pong') {
+          _waitingForPong = false;
+          _pongTimeoutTimer?.cancel();
+          return;
+        }
         try {
           final data = _decodeJson(event);
           if (data != null) _updateFormData(data);
@@ -308,8 +315,11 @@ class WsStore {
         _notifyListeners();
       },
       onError: (e) {
+        _connected = false;
+        _channel = null;
         _connectionMessage = '连接错误';
         _connectionClass = 'status-failed';
+        _stopHeartbeat();
         WakelockPlus.disable();
         _startReconnect();
         _notifyListeners();
@@ -383,14 +393,39 @@ class WsStore {
 
   void _startHeartbeat() {
     _stopHeartbeat();
+    _waitingForPong = false;
     _heartbeatTimer = Timer.periodic(Duration(seconds: 9), (_) {
-      if (_connected) sendMessage({'route': 'ping'});
+      if (!_connected) return;
+      _waitingForPong = true;
+      sendMessage({'route': 'ping'});
+      _pongTimeoutTimer?.cancel();
+      _pongTimeoutTimer = Timer(Duration(seconds: 5), () {
+        if (_waitingForPong && _connected) {
+          _handleConnectionLost();
+        }
+      });
     });
   }
 
   void _stopHeartbeat() {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
+    _pongTimeoutTimer?.cancel();
+    _pongTimeoutTimer = null;
+    _waitingForPong = false;
+  }
+
+  void _handleConnectionLost() {
+    _connected = false;
+    _streamSubscription?.cancel();
+    _streamSubscription = null;
+    _channel = null;
+    _connectionMessage = '连接断开';
+    _connectionClass = 'status-failed';
+    _stopHeartbeat();
+    WakelockPlus.disable();
+    _startReconnect();
+    _notifyListeners();
   }
 
   Future<void> reconnect() async {
