@@ -1,36 +1,125 @@
 import 'dart:async';
+
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 /// HID按键名称映射表（与Vue版本一致）
 final Map<String, String> hidKeyNameMap = {
-  '04': 'A', '05': 'B', '06': 'C', '07': 'D', '08': 'E', '09': 'F', '0A': 'G',
-  '0B': 'H', '0C': 'I', '0D': 'J', '0E': 'K', '0F': 'L', '10': 'M', '11': 'N',
-  '12': 'O', '13': 'P', '14': 'Q', '15': 'R', '16': 'S', '17': 'T', '18': 'U',
-  '19': 'V', '1A': 'W', '1B': 'X', '1C': 'Y', '1D': 'Z',
-  '1E': '1', '1F': '2', '20': '3', '21': '4', '22': '5',
-  '23': '6', '24': '7', '25': '8', '26': '9', '27': '0',
-  '28': 'Enter', '29': 'ESC', '2A': 'Backspace', '2B': 'Tab', '2C': 'Space',
-  '2D': '-', '2E': '=', '2F': '[', '30': ']',
-  '31': '\\', '32': '#', '33': ';', '34': "'",
-  '35': '`', '36': ',', '37': '.', '38': '/',
+  '04': 'A',
+  '05': 'B',
+  '06': 'C',
+  '07': 'D',
+  '08': 'E',
+  '09': 'F',
+  '0A': 'G',
+  '0B': 'H',
+  '0C': 'I',
+  '0D': 'J',
+  '0E': 'K',
+  '0F': 'L',
+  '10': 'M',
+  '11': 'N',
+  '12': 'O',
+  '13': 'P',
+  '14': 'Q',
+  '15': 'R',
+  '16': 'S',
+  '17': 'T',
+  '18': 'U',
+  '19': 'V',
+  '1A': 'W',
+  '1B': 'X',
+  '1C': 'Y',
+  '1D': 'Z',
+  '1E': '1',
+  '1F': '2',
+  '20': '3',
+  '21': '4',
+  '22': '5',
+  '23': '6',
+  '24': '7',
+  '25': '8',
+  '26': '9',
+  '27': '0',
+  '28': 'Enter',
+  '29': 'ESC',
+  '2A': 'Backspace',
+  '2B': 'Tab',
+  '2C': 'Space',
+  '2D': '-',
+  '2E': '=',
+  '2F': '[',
+  '30': ']',
+  '31': '\\',
+  '32': '#',
+  '33': ';',
+  '34': "'",
+  '35': '`',
+  '36': ',',
+  '37': '.',
+  '38': '/',
   '39': 'Caps Lock',
-  '3A': 'F1', '3B': 'F2', '3C': 'F3', '3D': 'F4', '3E': 'F5', '3F': 'F6',
-  '40': 'F7', '41': 'F8', '42': 'F9', '43': 'F10', '44': 'F11', '45': 'F12',
-  '46': 'PrintScreen', '47': 'ScrollLock', '48': 'Pause',
-  '49': 'Insert', '4A': 'Home', '4B': 'PgUp', '4C': 'Delete',
-  '4D': 'End', '4E': 'PgDn', '4F': 'Right', '50': 'Left', '51': 'Down', '52': 'Up',
+  '3A': 'F1',
+  '3B': 'F2',
+  '3C': 'F3',
+  '3D': 'F4',
+  '3E': 'F5',
+  '3F': 'F6',
+  '40': 'F7',
+  '41': 'F8',
+  '42': 'F9',
+  '43': 'F10',
+  '44': 'F11',
+  '45': 'F12',
+  '46': 'PrintScreen',
+  '47': 'ScrollLock',
+  '48': 'Pause',
+  '49': 'Insert',
+  '4A': 'Home',
+  '4B': 'PgUp',
+  '4C': 'Delete',
+  '4D': 'End',
+  '4E': 'PgDn',
+  '4F': 'Right',
+  '50': 'Left',
+  '51': 'Down',
+  '52': 'Up',
   '53': 'NumLock',
-  '54': 'Num/', '55': 'Num*', '56': 'Num-', '57': 'Num+',
-  '58': 'NumEnter', '59': 'Num1', '5A': 'Num2',
-  '5B': 'Num3', '5C': 'Num4', '5D': 'Num5',
-  '5E': 'Num6', '5F': 'Num7', '60': 'Num8',
-  '61': 'Num9', '62': 'Num0', '63': 'Num.',
-  '64': 'Keycode45', '65': 'APP',
-  '85': 'Keycode107', '87': 'Keycode56', '88': 'J133', '89': 'Keycode14',
-  '8A': 'J132', '8B': 'J131', '90': 'Hangul', '91': 'Hanja',
-  'E0': 'LCtrl', 'E1': 'LShift', 'E2': 'LAlt', 'E3': 'LWin',
-  'E4': 'RCtrl', 'E5': 'RShift', 'E6': 'RAlt', 'E7': 'RWin',
+  '54': 'Num/',
+  '55': 'Num*',
+  '56': 'Num-',
+  '57': 'Num+',
+  '58': 'NumEnter',
+  '59': 'Num1',
+  '5A': 'Num2',
+  '5B': 'Num3',
+  '5C': 'Num4',
+  '5D': 'Num5',
+  '5E': 'Num6',
+  '5F': 'Num7',
+  '60': 'Num8',
+  '61': 'Num9',
+  '62': 'Num0',
+  '63': 'Num.',
+  '64': 'Keycode45',
+  '65': 'APP',
+  '85': 'Keycode107',
+  '87': 'Keycode56',
+  '88': 'J133',
+  '89': 'Keycode14',
+  '8A': 'J132',
+  '8B': 'J131',
+  '90': 'Hangul',
+  '91': 'Hanja',
+  'E0': 'LCtrl',
+  'E1': 'LShift',
+  'E2': 'LAlt',
+  'E3': 'LWin',
+  'E4': 'RCtrl',
+  'E5': 'RShift',
+  'E6': 'RAlt',
+  'E7': 'RWin',
 };
 
 class HidKeyInfo {
@@ -105,13 +194,40 @@ class WsStore {
   bool get isConnected => _connected;
 
   // Setters for fields modified by pages
-  set currentOutput(String v) { _currentOutput = v; _notifyListeners(); }
-  void setEndpointBeforeDelayRandom(int v) { _endpointBeforeDelayRandom = v; _notifyListeners(); }
-  void setEndpointBeforeDelay(int v) { _endpointBeforeDelay = v; _notifyListeners(); }
-  void setEndpointDelay(int v) { _endpointDelay = v; _notifyListeners(); }
-  void setMode(int v) { _mode = v; _notifyListeners(); }
-  void setEndpointDynamicMode(int v) { _endpointDynamicMode = v; _notifyListeners(); }
-  set pollingRate(int v) { _pollingRate = v; _notifyListeners(); }
+  set currentOutput(String v) {
+    _currentOutput = v;
+    _notifyListeners();
+  }
+
+  void setEndpointBeforeDelayRandom(int v) {
+    _endpointBeforeDelayRandom = v;
+    _notifyListeners();
+  }
+
+  void setEndpointBeforeDelay(int v) {
+    _endpointBeforeDelay = v;
+    _notifyListeners();
+  }
+
+  void setEndpointDelay(int v) {
+    _endpointDelay = v;
+    _notifyListeners();
+  }
+
+  void setMode(int v) {
+    _mode = v;
+    _notifyListeners();
+  }
+
+  void setEndpointDynamicMode(int v) {
+    _endpointDynamicMode = v;
+    _notifyListeners();
+  }
+
+  set pollingRate(int v) {
+    _pollingRate = v;
+    _notifyListeners();
+  }
 
   String getKeyName(String code) {
     if (code.isEmpty) return '';
@@ -153,6 +269,7 @@ class WsStore {
     try {
       _channel = WebSocketChannel.connect(Uri.parse(url));
       _connected = true;
+      WakelockPlus.enable();
     } catch (e) {
       _connectionMessage = '连接失败';
       _connectionClass = 'status-failed';
@@ -180,11 +297,13 @@ class WsStore {
         _connectionMessage = '连接被关闭';
         _connectionClass = 'status-failed';
         _stopHeartbeat();
+        WakelockPlus.disable();
         _notifyListeners();
       },
       onError: (e) {
         _connectionMessage = '连接错误';
         _connectionClass = 'status-failed';
+        WakelockPlus.disable();
         _notifyListeners();
       },
     );
@@ -205,6 +324,7 @@ class WsStore {
     _channel = null;
     _connected = false;
     _stopHeartbeat();
+    WakelockPlus.disable();
     _connectionMessage = '未连接';
     _connectionClass = 'status-failed';
     _notifyListeners();
@@ -248,7 +368,15 @@ class WsStore {
     final prefs = await SharedPreferences.getInstance();
     final ip = prefs.getString('config_ip') ?? '';
     if (ip.isNotEmpty) {
+      disconnectWebSocket();
       connectWebSocket(ip);
+    }
+  }
+
+  Future<void> reconnectWithAddress(String address) async {
+    if (address.isNotEmpty) {
+      disconnectWebSocket();
+      connectWebSocket(address);
     }
   }
 
@@ -267,27 +395,61 @@ class WsStore {
         case 'MaskButton':
           _maskButton = parseKeyList((value as List).cast<String>());
           break;
-        case 'pid': _pid = value.toString(); break;
-        case 'vid': _vid = value.toString(); break;
-        case 'baud': _baud = value as int; break;
-        case 'Endpoint_BeforeDelay_Random': _endpointBeforeDelayRandom = value as int; break;
-        case 'Endpoint_BeforeDelay': _endpointBeforeDelay = value as int; break;
-        case 'Endpoint_delay': _endpointDelay = value as int; break;
-        case 'Endpoint_dynamic_mode': _endpointDynamicMode = value as int; break;
-        case 'LCD1': _lcd1 = value.toString(); break;
-        case 'LCD2': _lcd2 = value.toString(); break;
-        case 'Mode': _mode = value as int; break;
-        case 'macmode': _macmode = value as bool; break;
-        case 'polling_rate': _pollingRate = value as int; break;
-        case 'currentOutput': _currentOutput = value.toString(); break;
+        case 'pid':
+          _pid = value.toString();
+          break;
+        case 'vid':
+          _vid = value.toString();
+          break;
+        case 'baud':
+          _baud = value as int;
+          break;
+        case 'Endpoint_BeforeDelay_Random':
+          _endpointBeforeDelayRandom = value as int;
+          break;
+        case 'Endpoint_BeforeDelay':
+          _endpointBeforeDelay = value as int;
+          break;
+        case 'Endpoint_delay':
+          _endpointDelay = value as int;
+          break;
+        case 'Endpoint_dynamic_mode':
+          _endpointDynamicMode = value as int;
+          break;
+        case 'LCD1':
+          _lcd1 = value.toString();
+          break;
+        case 'LCD2':
+          _lcd2 = value.toString();
+          break;
+        case 'Mode':
+          _mode = value as int;
+          break;
+        case 'macmode':
+          _macmode = value as bool;
+          break;
+        case 'polling_rate':
+          _pollingRate = value as int;
+          break;
+        case 'currentOutput':
+          _currentOutput = value.toString();
+          break;
         case 'outputs':
           final raw = value as List;
-          _outputs = raw.map((e) => OutputDevice(name: e['name'] as String)).toList();
+          _outputs = raw
+              .map((e) => OutputDevice(name: e['name'] as String))
+              .toList();
           _outputs = _sortOutputs(_outputs);
           break;
-        case 'manufacturer': _manufacturer = value.toString(); break;
-        case 'product': _product = value.toString(); break;
-        case 'serial': _serial = value.toString(); break;
+        case 'manufacturer':
+          _manufacturer = value.toString();
+          break;
+        case 'product':
+          _product = value.toString();
+          break;
+        case 'serial':
+          _serial = value.toString();
+          break;
       }
     }
     _notifyListeners();
@@ -300,7 +462,9 @@ class WsStore {
 
   void _notifyListeners() {
     for (final cb in _listeners) {
-      try { cb(); } catch (e) {}
+      try {
+        cb();
+      } catch (e) {}
     }
   }
 
@@ -358,7 +522,9 @@ class _SimpleDecoder {
   }
 
   void _skipWs() {
-    while (_pos < _src.length && _src.codeUnitAt(_pos) <= 32) _pos++;
+    while (_pos < _src.length && _src.codeUnitAt(_pos) <= 32) {
+      _pos++;
+    }
   }
 
   dynamic _parseVal() {
@@ -368,9 +534,18 @@ class _SimpleDecoder {
     if (c == '{') return _parseObj();
     if (c == '[') return _parseArr();
     if (c == '"') return _parseStr();
-    if (c == 't') { _pos += 4; return true; }
-    if (c == 'f') { _pos += 5; return false; }
-    if (c == 'n') { _pos += 4; return null; }
+    if (c == 't') {
+      _pos += 4;
+      return true;
+    }
+    if (c == 'f') {
+      _pos += 5;
+      return false;
+    }
+    if (c == 'n') {
+      _pos += 4;
+      return null;
+    }
     return _parseNum();
   }
 
@@ -378,15 +553,21 @@ class _SimpleDecoder {
     final result = <String, dynamic>{};
     _pos++;
     _skipWs();
-    if (_pos < _src.length && _src[_pos] == '}') { _pos++; return result; }
+    if (_pos < _src.length && _src[_pos] == '}') {
+      _pos++;
+      return result;
+    }
     while (true) {
       _skipWs();
-      final key = _parseStr() as String;
+      final key = _parseStr();
       _skipWs();
       _pos++;
       result[key] = _parseVal();
       _skipWs();
-      if (_pos < _src.length && _src[_pos] == ',') { _pos++; continue; }
+      if (_pos < _src.length && _src[_pos] == ',') {
+        _pos++;
+        continue;
+      }
       break;
     }
     _pos++;
@@ -397,11 +578,17 @@ class _SimpleDecoder {
     final result = <dynamic>[];
     _pos++;
     _skipWs();
-    if (_pos < _src.length && _src[_pos] == ']') { _pos++; return result; }
+    if (_pos < _src.length && _src[_pos] == ']') {
+      _pos++;
+      return result;
+    }
     while (true) {
       result.add(_parseVal());
       _skipWs();
-      if (_pos < _src.length && _src[_pos] == ',') { _pos++; continue; }
+      if (_pos < _src.length && _src[_pos] == ',') {
+        _pos++;
+        continue;
+      }
       break;
     }
     _pos++;
@@ -415,13 +602,27 @@ class _SimpleDecoder {
       if (_src[_pos] == '\\' && _pos + 1 < _src.length) {
         _pos++;
         switch (_src[_pos]) {
-          case '"': sb.write('"'); break;
-          case '\\': sb.write('\\'); break;
-          case '/': sb.write('/'); break;
-          case 'n': sb.write('\n'); break;
-          case 't': sb.write('\t'); break;
-          case 'r': sb.write('\r'); break;
-          default: sb.write(_src[_pos]); break;
+          case '"':
+            sb.write('"');
+            break;
+          case '\\':
+            sb.write('\\');
+            break;
+          case '/':
+            sb.write('/');
+            break;
+          case 'n':
+            sb.write('\n');
+            break;
+          case 't':
+            sb.write('\t');
+            break;
+          case 'r':
+            sb.write('\r');
+            break;
+          default:
+            sb.write(_src[_pos]);
+            break;
         }
       } else {
         sb.write(_src[_pos]);
@@ -437,7 +638,12 @@ class _SimpleDecoder {
     if (_src[_pos] == '-') _pos++;
     while (_pos < _src.length) {
       final u = _src.codeUnitAt(_pos);
-      if (u >= 48 && u <= 57 || u == 46 || u == 101 || u == 69 || u == 43 || u == 45) {
+      if (u >= 48 && u <= 57 ||
+          u == 46 ||
+          u == 101 ||
+          u == 69 ||
+          u == 43 ||
+          u == 45) {
         _pos++;
       } else {
         break;

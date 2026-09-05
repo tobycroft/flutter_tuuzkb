@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../store/ws.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -11,8 +13,12 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final WsStore ws = WsStore();
-  final TextEditingController _vidController = TextEditingController(text: '05ac');
-  final TextEditingController _pidController = TextEditingController(text: '0256');
+  final TextEditingController _vidController = TextEditingController(
+    text: '05ac',
+  );
+  final TextEditingController _pidController = TextEditingController(
+    text: '0256',
+  );
   final TextEditingController _mfgrController = TextEditingController();
   final TextEditingController _prodController = TextEditingController();
   final TextEditingController _serialController = TextEditingController();
@@ -72,7 +78,7 @@ class _SettingsPageState extends State<SettingsPage> {
     ws.sendMessage({
       'route': 'kbd',
       'type': 'pidvid',
-      'data': {'pid': pid, 'vid': vid}
+      'data': {'pid': pid, 'vid': vid},
     });
   }
 
@@ -87,7 +93,7 @@ class _SettingsPageState extends State<SettingsPage> {
     ws.sendMessage({
       'route': 'kbd',
       'type': 'setusbstr',
-      'data': {'mfgr': mfgr, 'prod': prod, 'serial': serial}
+      'data': {'mfgr': mfgr, 'prod': prod, 'serial': serial},
     });
   }
 
@@ -96,7 +102,7 @@ class _SettingsPageState extends State<SettingsPage> {
     ws.sendMessage({
       'route': 'kbd',
       'type': 'polling_rate',
-      'data': {'rate': rate}
+      'data': {'rate': rate},
     });
   }
 
@@ -105,7 +111,7 @@ class _SettingsPageState extends State<SettingsPage> {
     ws.sendMessage({
       'route': 'semi-config',
       'type': 'switch_output',
-      'data': {'name': name}
+      'data': {'name': name},
     });
     _cfggetTimer?.cancel();
     _cfggetTimer = Timer(Duration(seconds: 1), () {
@@ -125,7 +131,7 @@ class _SettingsPageState extends State<SettingsPage> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('确定', style: TextStyle(color: Color(0xFF3CC51F))),
-          )
+          ),
         ],
       ),
     );
@@ -151,19 +157,43 @@ class _SettingsPageState extends State<SettingsPage> {
               // Output switcher
               _SectionTitle('输出切换'),
               if (ws.outputs.isNotEmpty) ...[
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                Row(
                   children: ws.outputs.map((dev) {
                     final selected = ws.currentOutput == dev.name;
-                    return ActionChip(
-                      label: Text('输出 ${dev.name}'),
-                      backgroundColor: selected ? Color(0xFF3CC51F) : Color(0xFF2C2C2E),
-                      labelStyle: TextStyle(
-                        color: selected ? Colors.white : Colors.grey[300],
-                        fontSize: 12,
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: ws.outputs.last == dev ? 0 : 6,
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => _switchOutput(dev.name),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: selected
+                                ? Color(0xFF3CC51F)
+                                : Color(0xFF2C2C2E),
+                            foregroundColor: selected
+                                ? Colors.white
+                                : Color(0xFFDDDDDD),
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              side: BorderSide(
+                                color: selected
+                                    ? Color(0xFF3CC51F)
+                                    : Color(0xFF3A3A3C),
+                              ),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            '输出 ${dev.name}',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                       ),
-                      onPressed: () => _switchOutput(dev.name),
                     );
                   }).toList(),
                 ),
@@ -198,9 +228,21 @@ class _SettingsPageState extends State<SettingsPage> {
               // Polling rate
               _SectionTitle('回报率'),
               _BtnRow([
-                _PollingButton(rate: 1, current: ws.pollingRate, onTap: _setPollingRate),
-                _PollingButton(rate: 2, current: ws.pollingRate, onTap: _setPollingRate),
-                _PollingButton(rate: 8, current: ws.pollingRate, onTap: _setPollingRate),
+                _PollingButton(
+                  rate: 1,
+                  current: ws.pollingRate,
+                  onTap: _setPollingRate,
+                ),
+                _PollingButton(
+                  rate: 2,
+                  current: ws.pollingRate,
+                  onTap: _setPollingRate,
+                ),
+                _PollingButton(
+                  rate: 8,
+                  current: ws.pollingRate,
+                  onTap: _setPollingRate,
+                ),
               ]),
               SizedBox(height: 12),
 
@@ -208,7 +250,10 @@ class _SettingsPageState extends State<SettingsPage> {
               _SectionTitle('系统'),
               _BtnRow([
                 _ActionButton(label: '重启', onTap: () => _cmd('reset')),
-                _ActionButton(label: '获取 cfg', onTap: () => ws.requestInfoCfgGet()),
+                _ActionButton(
+                  label: '获取 cfg',
+                  onTap: () => ws.requestInfoCfgGet(),
+                ),
                 _ActionButton(label: '重置', onTap: () => _cmd('setting_reset')),
               ]),
               SizedBox(height: 6),
@@ -239,10 +284,18 @@ class _SettingsPageState extends State<SettingsPage> {
                     onPressed: _setPidVid,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF3CC51F),
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    child: Text('设置', style: TextStyle(color: Colors.white, fontSize: 13)),
+                    child: Text(
+                      '设置',
+                      style: TextStyle(color: Colors.white, fontSize: 13),
+                    ),
                   ),
                 ],
               ),
@@ -250,10 +303,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
               // USB strings
               _SectionTitle('USB 字符串'),
-              _StyledTextField(
-                controller: _mfgrController,
-                placeholder: '制造商',
-              ),
+              _StyledTextField(controller: _mfgrController, placeholder: '制造商'),
               SizedBox(height: 6),
               Row(
                 children: [
@@ -275,10 +325,18 @@ class _SettingsPageState extends State<SettingsPage> {
                     onPressed: _setUsbString,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF3CC51F),
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    child: Text('设置', style: TextStyle(color: Colors.white, fontSize: 13)),
+                    child: Text(
+                      '设置',
+                      style: TextStyle(color: Colors.white, fontSize: 13),
+                    ),
                   ),
                 ],
               ),
@@ -292,9 +350,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Color _getStatusColor() {
     switch (ws.connectionClass) {
-      case 'status-success': return Colors.green[700]!;
-      case 'status-progress': return Colors.blue[700]!;
-      default: return Colors.red[700]!;
+      case 'status-success':
+        return Colors.green[700]!;
+      case 'status-progress':
+        return Colors.blue[700]!;
+      default:
+        return Colors.red[700]!;
     }
   }
 }
@@ -316,7 +377,11 @@ class _ConnectionBanner extends StatelessWidget {
       child: Text(
         message,
         textAlign: TextAlign.center,
-        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -332,7 +397,12 @@ class _SectionTitle extends StatelessWidget {
       padding: EdgeInsets.only(left: 4, top: 4, bottom: 4),
       child: Text(
         title,
-        style: TextStyle(color: Colors.grey[400], fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+        style: TextStyle(
+          color: Colors.grey[400],
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -344,9 +414,7 @@ class _BtnRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: children.map((c) => Expanded(child: c)).toList(),
-    );
+    return Row(children: children.map((c) => Expanded(child: c)).toList());
   }
 }
 
@@ -367,7 +435,10 @@ class _ActionButton extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        child: Text(
+          label,
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -390,7 +461,10 @@ class _MacButton extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: Text('Mac', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        child: Text(
+          'Mac',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -400,7 +474,11 @@ class _PollingButton extends StatelessWidget {
   final int rate;
   final int current;
   final Function(int) onTap;
-  const _PollingButton({required this.rate, required this.current, required this.onTap});
+  const _PollingButton({
+    required this.rate,
+    required this.current,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -415,7 +493,10 @@ class _PollingButton extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: Text('$rate ms', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        child: Text(
+          '$rate ms',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -425,7 +506,11 @@ class _CompactInfo extends StatelessWidget {
   final String vid;
   final String pid;
   final int baud;
-  const _CompactInfo({required this.vid, required this.pid, required this.baud});
+  const _CompactInfo({
+    required this.vid,
+    required this.pid,
+    required this.baud,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -459,12 +544,15 @@ class _InfoItem extends StatelessWidget {
       children: [
         Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 11)),
         SizedBox(height: 2),
-        Text(value, style: TextStyle(
-          color: Colors.grey[200],
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          fontFamily: 'Courier New',
-        )),
+        Text(
+          value,
+          style: TextStyle(
+            color: Colors.grey[200],
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'Courier New',
+          ),
+        ),
       ],
     );
   }
@@ -491,7 +579,10 @@ class _CompactLcd extends StatelessWidget {
           ),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 8),
-            child: Text('|', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+            child: Text(
+              '|',
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            ),
           ),
           Expanded(
             child: _LcdCell(label: 'LCD2', text: lcd2),
@@ -512,7 +603,14 @@ class _LcdCell extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 11, fontWeight: FontWeight.w700)),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey[500],
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         SizedBox(height: 4),
         Container(
           width: double.infinity,
@@ -524,7 +622,11 @@ class _LcdCell extends StatelessWidget {
           ),
           child: Text(
             text,
-            style: TextStyle(color: Color(0xFF7CFC00), fontSize: 12, fontFamily: 'Courier New'),
+            style: TextStyle(
+              color: Color(0xFF7CFC00),
+              fontSize: 12,
+              fontFamily: 'Courier New',
+            ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -550,15 +652,29 @@ class _MaskPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('屏蔽状态', style: TextStyle(color: Colors.grey[400], fontSize: 14, fontWeight: FontWeight.w700)),
+          Text(
+            '屏蔽状态',
+            style: TextStyle(
+              color: Colors.grey[400],
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           SizedBox(height: 8),
           Wrap(
             spacing: 6,
             runSpacing: 6,
-            children: keys.map((k) => Chip(
-              label: Text(k.display, style: TextStyle(fontSize: 11, color: Colors.white)),
-              backgroundColor: Color(0xFF8B0000),
-            )).toList(),
+            children: keys
+                .map(
+                  (k) => Chip(
+                    label: Text(
+                      k.display,
+                      style: TextStyle(fontSize: 11, color: Colors.white),
+                    ),
+                    backgroundColor: Color(0xFF8B0000),
+                  ),
+                )
+                .toList(),
           ),
         ],
       ),
@@ -575,7 +691,11 @@ class _StyledTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      style: TextStyle(color: Colors.grey[200], fontFamily: 'Courier New', fontSize: 13),
+      style: TextStyle(
+        color: Colors.grey[200],
+        fontFamily: 'Courier New',
+        fontSize: 13,
+      ),
       decoration: InputDecoration(
         hintText: placeholder,
         hintStyle: TextStyle(color: Colors.grey[600], fontSize: 13),

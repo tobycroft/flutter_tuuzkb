@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../store/ws.dart';
 
 class ConnectionPage extends StatefulWidget {
@@ -63,7 +64,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
     setState(() {
       _ipController.text = resolvedIp;
     });
-    _showAlert('设置已保存');
+    ws.reconnectWithAddress(resolvedIp);
   }
 
   void _showAlert(String message) {
@@ -77,7 +78,7 @@ class _ConnectionPageState extends State<ConnectionPage> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('确定', style: TextStyle(color: Color(0xFF3CC51F))),
-          )
+          ),
         ],
       ),
     );
@@ -85,9 +86,12 @@ class _ConnectionPageState extends State<ConnectionPage> {
 
   Color _getStatusColor() {
     switch (ws.connectionClass) {
-      case 'status-success': return Colors.green[700]!;
-      case 'status-progress': return Colors.blue[700]!;
-      default: return Colors.red[700]!;
+      case 'status-success':
+        return Colors.green[700]!;
+      case 'status-progress':
+        return Colors.blue[700]!;
+      default:
+        return Colors.red[700]!;
     }
   }
 
@@ -287,7 +291,11 @@ class _CompactInfo extends StatelessWidget {
   final String vid;
   final String pid;
   final int baud;
-  const _CompactInfo({required this.vid, required this.pid, required this.baud});
+  const _CompactInfo({
+    required this.vid,
+    required this.pid,
+    required this.baud,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -351,7 +359,9 @@ class _CompactLcd extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(child: _LcdCell(label: 'LCD1', text: lcd1)),
+          Expanded(
+            child: _LcdCell(label: 'LCD1', text: lcd1),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
@@ -359,7 +369,9 @@ class _CompactLcd extends StatelessWidget {
               style: TextStyle(color: Colors.grey[600], fontSize: 13),
             ),
           ),
-          Expanded(child: _LcdCell(label: 'LCD2', text: lcd2)),
+          Expanded(
+            child: _LcdCell(label: 'LCD2', text: lcd2),
+          ),
         ],
       ),
     );
