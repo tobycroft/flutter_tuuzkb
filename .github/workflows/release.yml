@@ -1,62 +1,119 @@
+  ```yaml
   name: Flutter Android Release
+
 
   # ============================================================
   # Trigger
   # ============================================================
+  #
+  # 每次 push 到 main：
+  #
+  #   自动计算下一个版本
+  #   自动编译
+  #   自动创建 Tag
+  #   自动创建 GitHub Release
+  #
   on:
-    # 推送 main 分支时自动构建
     push:
       branches:
-        - 'main'
+        - main
 
     # 允许在 GitHub Actions 页面手动执行
     workflow_dispatch:
 
 
   # ============================================================
-  # GitHub Actions permissions
+  # Workflow permissions
+  # ============================================================
   #
-  # GITHUB_TOKEN 是 GitHub 自动提供的临时 Token，
-  # 不需要在 Repository Secrets 中手动创建。
+  # GitHub 会自动提供 GITHUB_TOKEN。
+  #
+  # 不需要：
+  #   Settings
+  #   -> Secrets
+  #   -> New repository secret
   #
   # contents: write 用于：
-  #   - 创建 GitHub Release
+  #   - 创建 Tag
+  #   - 创建 Release
   #   - 上传 APK
   #   - 上传 AAB
-  # ============================================================
+  #
   permissions:
     contents: write
 
 
   # ============================================================
-  # Build Job
+  # Concurrency
+  # ============================================================
+  #
+  # 防止两个 commit 同时触发 Release。
+  #
+  # 例如：
+  #
+  #   Commit A -> v1.0.10
+  #   Commit B -> v1.0.11
+  #
+  # 如果两个 Workflow 同时运行，都可能认为：
+  #
+  #   最新版本 = v1.0.9
+  #
+  # 从而产生冲突。
+  #
+  # 使用同一个 concurrency group 后，
+  # GitHub 会让它们依次执行。
+  #
+  concurrency:
+    group: flutter-release-main
+    cancel-in-progress: false
+
+
+  # ============================================================
+  # Job
   # ============================================================
   jobs:
 
     build:
+
       name: Build Flutter Android
+
       runs-on: ubuntu-latest
+
 
       steps:
 
         # ======================================================
-        # Step 1: Checkout source code
+        # Step 1
+        # Checkout
         # ======================================================
+        #
+        # fetch-depth: 0
+        #
+        # 非常重要：
+        # 我们需要读取 Repository 中已有的全部 Tags，
+        # 才能正确计算最大版本。
+        #
         - name: Checkout
           uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
 
 
         # ======================================================
-        # Step 2: Setup JDK
+        # Step 2
+        # Setup JDK 17
+        # ======================================================
         #
-        # Flutter Android:
+        # Flutter Android
+        #
         # Flutter
-        #   -> Gradle
-        #      -> Android Gradle Plugin
-        #         -> Kotlin / Java
+        #   ↓
+        # Gradle
+        #   ↓
+        # Android Gradle Plugin
+        #   ↓
+        # Kotlin / Java
         #
-        # JDK 17 是目前较为稳妥的选择。
-        # ======================================================
         - name: Setup JDK 17
           uses: actions/setup-java@v4
           with:
@@ -66,24 +123,34 @@
 
 
         # ======================================================
-        # Step 3: Setup Flutter
+        # Step 3
+        # Setup Flutter
         # ======================================================
+        #
+        # 锁定 Flutter 版本。
+        #
+        # 避免 Flutter Stable 更新后，
+        # CI 突然使用了新的 Flutter 版本。
+        #
         - name: Setup Flutter
           uses: subosito/flutter-action@v2
           with:
+            flutter-version: '3.27.0'
             channel: stable
             cache: true
 
 
         # ======================================================
-        # Step 4: Flutter environment
+        # Step 4
+        # Flutter Doctor
         # ======================================================
         - name: Flutter Doctor
           run: flutter doctor -v
 
 
         # ======================================================
-        # Step 5: Check Android project
+        # Step 5
+        # Check Flutter Android project
         # ======================================================
         - name: Check Flutter Android Project
           shell: bash
@@ -92,19 +159,18 @@
             
             if [ ! -d "android" ]; then
               echo "::error::Flutter Android project directory is missing."
-              echo
-              echo "Expected directory:"
-              echo "  android/"
               exit 1
             fi
             
             if [ ! -f "android/settings.gradle" ] && \
                [ ! -f "android/settings.gradle.kts" ]; then
+            
               echo "::error::Android Gradle settings file is missing."
               echo
               echo "Expected one of:"
               echo "  android/settings.gradle"
               echo "  android/settings.gradle.kts"
+            
               exit 1
             fi
             
@@ -112,19 +178,136 @@
         
 
         # ======================================================
-        # Step 6: Prepare Gradle Wrapper
-        #
-        # 如果仓库已经存在 Gradle Wrapper：
-        #     直接使用
-        #
-        # 如果不存在：
-        #     自动生成 Gradle Wrapper
-        #
-        # 这样不要求仓库必须提交：
-        #     android/gradlew
-        #     android/gradlew.bat
-        #     android/gradle/wrapper/*
+        # Step 6
+        # Calculate next version
         # ======================================================
+        #
+        # 当前 Tag 示例：
+        #
+        #   v1.0.0
+        #   v1.0.1
+        #   v1.0.8
+        #   v1.0.10
+        #
+        # 自动生成：
+        #
+        #   v1.0.11
+        #
+        # 注意：
+        #
+        # 这里使用 sort -V，
+        # 所以不会出现：
+        #
+        #   v1.0.9 > v1.0.10
+        #
+        # 这种字符串排序错误。
+        #
+        - name: Calculate Next Version
+          id: version
+          shell: bash
+          run: |
+            set -e
+            
+            echo "Existing release tags:"
+            
+            git tag --list 'v*.*.*' --sort=-version:refname || true
+            
+            # --------------------------------------------------
+            # 获取所有符合 vX.Y.Z 的 Tag
+            # --------------------------------------------------
+            TAGS=$(git tag --list 'v*.*.*' --sort=-version:refname)
+            
+            if [ -z "$TAGS" ]; then
+            
+              echo "No existing release tag found."
+            
+              MAJOR=1
+              MINOR=0
+              PATCH=0
+            
+            else
+            
+              LATEST_TAG=$(echo "$TAGS" | head -n 1)
+            
+              echo
+              echo "Latest version:"
+              echo "$LATEST_TAG"
+            
+              VERSION="${LATEST_TAG#v}"
+            
+              IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+            
+              PATCH=$((PATCH + 1))
+            
+            fi
+            
+            
+            # --------------------------------------------------
+            # 生成新的版本
+            # --------------------------------------------------
+            VERSION="${MAJOR}.${MINOR}.${PATCH}"
+            TAG="v${VERSION}"
+            
+            
+            echo
+            echo "New version:"
+            echo "$VERSION"
+            
+            echo
+            echo "New tag:"
+            echo "$TAG"
+            
+            
+            # --------------------------------------------------
+            # 输出给后续 Steps
+            # --------------------------------------------------
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        
+
+        # ======================================================
+        # Step 7
+        # Prepare Android local.properties
+        # ======================================================
+        #
+        # local.properties 通常不应该提交到 Git。
+        #
+        # GitHub Runner 每次重新创建环境，
+        # 所以这里自动生成。
+        #
+        - name: Prepare Android local.properties
+          shell: bash
+          run: |
+            set -e
+            
+            echo "Preparing android/local.properties..."
+            
+            cat > android/local.properties <<EOF
+            sdk.dir=${ANDROID_SDK_ROOT}
+            flutter.sdk=${FLUTTER_ROOT}
+            EOF
+            
+            
+            echo
+            echo "Generated android/local.properties:"
+            cat android/local.properties
+        
+
+        # ======================================================
+        # Step 8
+        # Prepare Gradle Wrapper
+        # ======================================================
+        #
+        # 如果仓库已经有：
+        #
+        #   android/gradlew
+        #
+        # 直接使用。
+        #
+        # 如果没有：
+        #
+        #   尝试使用 Runner 的 Gradle 自动生成。
+        #
         - name: Prepare Gradle Wrapper
           shell: bash
           run: |
@@ -132,20 +315,22 @@
             
             echo "Checking Gradle wrapper..."
             
+            
             if [ -f "android/gradlew" ]; then
+            
               echo "Gradle wrapper already exists."
             
               chmod +x android/gradlew
             
             else
+            
               echo "::warning::android/gradlew is missing."
               echo "Generating Gradle wrapper..."
             
+            
               cd android
             
-              # ------------------------------------------------
-              # 优先使用系统 Gradle
-              # ------------------------------------------------
+            
               if command -v gradle >/dev/null 2>&1; then
             
                 echo "System Gradle found:"
@@ -157,40 +342,44 @@
             
                 echo "::error::System Gradle is not installed."
                 echo
-                echo "Unable to generate Gradle wrapper automatically."
-                echo
-                echo "Please commit the Gradle wrapper into the repository:"
+                echo "Please commit the Gradle wrapper:"
                 echo
                 echo "  android/gradlew"
                 echo "  android/gradlew.bat"
                 echo "  android/gradle/wrapper/gradle-wrapper.jar"
                 echo "  android/gradle/wrapper/gradle-wrapper.properties"
-                echo
+            
                 exit 1
             
               fi
             
+            
               cd ..
+            
             fi
+            
+            
+            chmod +x android/gradlew
+            
             
             echo
             echo "Gradle wrapper:"
             ls -lh android/gradlew
             
+            
             echo
             echo "Gradle wrapper directory:"
-            ls -lh android/gradle/wrapper/ || true
+            ls -lh android/gradle/wrapper/
         
 
         # ======================================================
-        # Step 7: Verify Gradle
+        # Step 9
+        # Verify Gradle
         # ======================================================
         - name: Verify Gradle
           shell: bash
           run: |
             set -e
-            
-            chmod +x android/gradlew
             
             cd android
             
@@ -198,44 +387,57 @@
         
 
         # ======================================================
-        # Step 8: Get Flutter dependencies
+        # Step 10
+        # Flutter dependencies
         # ======================================================
         - name: Get Flutter dependencies
           run: flutter pub get
 
 
         # ======================================================
-        # Step 9: Flutter Analyze
-        #
-        # 如果你不希望因为 lint/analyze 问题阻止 Release，
-        # 可以删除这个步骤。
+        # Step 11
+        # Flutter Analyze
         # ======================================================
         - name: Flutter Analyze
           run: flutter analyze
 
 
         # ======================================================
-        # Step 10: Build APK
-        #
-        # Flutter 会自动调用 Android Gradle / Kotlin / Java。
+        # Step 12
+        # Build APK
         # ======================================================
+        #
+        # --build-name：
+        #   Android versionName
+        #
+        # --build-number：
+        #   Android versionCode
+        #
+        # GitHub Run Number 可以作为单调递增的 build number。
+        #
         - name: Build APK
           run: |
-            flutter build apk --release
+            flutter build apk \
+              --release \
+              --build-name="${{ steps.version.outputs.version }}" \
+              --build-number="${{ github.run_number }}"
         
 
         # ======================================================
-        # Step 11: Build Android App Bundle
-        #
-        # AAB 用于 Google Play。
+        # Step 13
+        # Build AAB
         # ======================================================
         - name: Build AAB
           run: |
-            flutter build appbundle --release
+            flutter build appbundle \
+              --release \
+              --build-name="${{ steps.version.outputs.version }}" \
+              --build-number="${{ github.run_number }}"
         
 
         # ======================================================
-        # Step 12: Prepare release files
+        # Step 14
+        # Prepare Release Files
         # ======================================================
         - name: Prepare Release Files
           shell: bash
@@ -244,26 +446,39 @@
             
             mkdir -p release
             
+            
+            # --------------------------------------------------
             # APK
+            # --------------------------------------------------
             if [ ! -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
+            
               echo "::error::APK was not generated."
+            
               exit 1
+            
             fi
+            
             
             cp \
               build/app/outputs/flutter-apk/app-release.apk \
-              release/app-release.apk
+              "release/flutter-${{ steps.version.outputs.tag }}.apk"
             
             
+            # --------------------------------------------------
             # AAB
+            # --------------------------------------------------
             if [ ! -f "build/app/outputs/bundle/release/app-release.aab" ]; then
+            
               echo "::error::AAB was not generated."
+            
               exit 1
+            
             fi
+            
             
             cp \
               build/app/outputs/bundle/release/app-release.aab \
-              release/app-release.aab
+              "release/flutter-${{ steps.version.outputs.tag }}.aab"
             
             
             echo
@@ -272,52 +487,102 @@
         
 
         # ======================================================
-        # Step 13: Upload workflow artifacts
-        #
-        # 即使 Release 创建失败，也可以在 Actions 页面
-        # 下载编译产物进行排查。
+        # Step 15
+        # Upload APK artifact
         # ======================================================
+        #
+        # 这个是 Actions Artifact。
+        #
+        # 即使 Release 创建失败，
+        # 也可以在 Actions 页面下载 APK。
+        #
         - name: Upload APK Artifact
           uses: actions/upload-artifact@v4
           with:
-            name: flutter-android-apk
-            path: release/app-release.apk
+            name: flutter-${{ steps.version.outputs.tag }}-apk
+            path: release/*.apk
             if-no-files-found: error
 
 
+        # ======================================================
+        # Step 16
+        # Upload AAB artifact
+        # ======================================================
         - name: Upload AAB Artifact
           uses: actions/upload-artifact@v4
           with:
-            name: flutter-android-aab
-            path: release/app-release.aab
+            name: flutter-${{ steps.version.outputs.tag }}-aab
+            path: release/*.aab
             if-no-files-found: error
 
 
         # ======================================================
-        # Step 14: Create GitHub Release
-        #
-        # 只有 Tag 触发时才创建 Release。
-        #
-        # workflow_dispatch 手动执行不会创建 Release。
-        #
-        # GITHUB_TOKEN 由 GitHub 自动提供，
-        # 不需要 Repository Secrets。
+        # Step 17
+        # Create GitHub Release
         # ======================================================
+        #
+        # gh release create 会：
+        #
+        #   1. 创建 vX.Y.Z Tag
+        #   2. Tag 指向当前 Commit
+        #   3. 创建 GitHub Release
+        #   4. 上传 APK
+        #   5. 上传 AAB
+        #   6. 自动生成 Release Notes
+        #
+        # 不需要：
+        #
+        #   secrets.GITHUB_TOKEN
+        #
+        # 只需要：
+        #
+        #   GH_TOKEN: ${{ github.token }}
+        #
         - name: Create GitHub Release
-          if: startsWith(github.ref, 'refs/tags/v')
-          uses: softprops/action-gh-release@v2
-          with:
+          env:
+            GH_TOKEN: ${{ github.token }}
+          run: |
+            set -e
+            
+            TAG="${{ steps.version.outputs.tag }}"
+            
+            echo "Creating GitHub Release:"
+            echo "$TAG"
+            
+            
+            gh release create "$TAG" \
+              release/*.apk \
+              release/*.aab \
+              --target "${{ github.sha }}" \
+              --title "$TAG" \
+              --generate-notes \
+              --latest
+            
+            
+            echo
+            echo "Release created successfully."
+        
 
-            # 上传到 Release 的文件
-            files: |
-              release/app-release.apk
-              release/app-release.aab
-
-            # 自动根据 Commit 生成 Release Notes
-            generate_release_notes: true
-
-            # 直接正式发布
-            draft: false
-
-            # 不是 Pre-release
-            prerelease: false
+        # ======================================================
+        # Step 18
+        # Print Release information
+        # ======================================================
+        - name: Release Summary
+          run: |
+            echo "=========================================="
+            echo "Flutter Android Release"
+            echo "=========================================="
+            echo
+            echo "Version : ${{ steps.version.outputs.version }}"
+            echo "Tag     : ${{ steps.version.outputs.tag }}"
+            echo "Commit  : ${{ github.sha }}"
+            echo "Build   : ${{ github.run_number }}"
+            echo
+            echo "APK:"
+            ls -lh release/*.apk
+            echo
+            echo "AAB:"
+            ls -lh release/*.aab
+            echo
+            echo "=========================================="
+    ```
