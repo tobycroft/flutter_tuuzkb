@@ -249,11 +249,11 @@ class WsStore {
 
   List<OutputDevice> _sortOutputs(List<OutputDevice> arr) {
     return [...arr]..sort((a, b) {
-      final na = _extractNum(a.name);
-      final nb = _extractNum(b.name);
-      if (na != nb) return na.compareTo(nb);
-      return a.name.compareTo(b.name);
-    });
+        final na = _extractNum(a.name);
+        final nb = _extractNum(b.name);
+        if (na != nb) return na.compareTo(nb);
+        return a.name.compareTo(b.name);
+      });
   }
 
   int _extractNum(String name) {
@@ -461,9 +461,8 @@ class WsStore {
           break;
         case 'outputs':
           final raw = value as List;
-          _outputs = raw
-              .map((e) => OutputDevice(name: e['name'] as String))
-              .toList();
+          _outputs =
+              raw.map((e) => OutputDevice(name: e['name'] as String)).toList();
           _outputs = _sortOutputs(_outputs);
           break;
         case 'manufacturer':
@@ -489,7 +488,9 @@ class WsStore {
     for (final cb in _listeners) {
       try {
         cb();
-      } catch (e) {}
+      } catch (e) {
+        // Ignore listener exceptions so other listeners still get notified.
+      }
     }
   }
 
