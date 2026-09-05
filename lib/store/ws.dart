@@ -145,6 +145,8 @@ class WsStore {
   WebSocketChannel? _channel;
   bool _connected = false;
   Timer? _heartbeatTimer;
+  Timer? _reconnectTimer;
+  String _lastUrl = '';
   String _connectionMessage = '未连接';
   String _connectionClass = 'status-failed';
 
@@ -262,6 +264,7 @@ class WsStore {
   void connectWebSocket(String url) {
     if (_connected) return;
 
+    _lastUrl = url;
     _connectionMessage = '连接中……';
     _connectionClass = 'status-progress';
     _notifyListeners();
@@ -275,6 +278,7 @@ class WsStore {
       _connectionClass = 'status-failed';
       _connected = false;
       _notifyListeners();
+      _startReconnect();
       return;
     }
 
@@ -298,12 +302,14 @@ class WsStore {
         _connectionClass = 'status-failed';
         _stopHeartbeat();
         WakelockPlus.disable();
+        _startReconnect();
         _notifyListeners();
       },
       onError: (e) {
         _connectionMessage = '连接错误';
         _connectionClass = 'status-failed';
         WakelockPlus.disable();
+        _startReconnect();
         _notifyListeners();
       },
     );
@@ -314,6 +320,7 @@ class WsStore {
         _connectionClass = 'status-success';
         requestInfo();
         _startHeartbeat();
+        _stopReconnect();
         _notifyListeners();
       }
     });
@@ -324,10 +331,28 @@ class WsStore {
     _channel = null;
     _connected = false;
     _stopHeartbeat();
+    _stopReconnect();
     WakelockPlus.disable();
     _connectionMessage = '未连接';
     _connectionClass = 'status-failed';
     _notifyListeners();
+  }
+
+  void _startReconnect() {
+    _stopReconnect();
+    _connectionMessage = '5秒后重连……';
+    _reconnectTimer = Timer.periodic(Duration(seconds: 5), (_) {
+      if (_lastUrl.isEmpty) return;
+      _connectionMessage = '正在重连……';
+      _connectionClass = 'status-progress';
+      _notifyListeners();
+      connectWebSocket(_lastUrl);
+    });
+  }
+
+  void _stopReconnect() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
   }
 
   void sendMessage(Map<String, dynamic> msg) {

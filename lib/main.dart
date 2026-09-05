@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_tuuzkb/pages/connection_page.dart';
 import 'package:flutter_tuuzkb/pages/home_page.dart';
 import 'package:flutter_tuuzkb/pages/settings_page.dart';
+import 'package:flutter_tuuzkb/store/ws.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,9 +28,8 @@ class _TuuzKBAppState extends State<TuuzKBApp> {
   @override
   void initState() {
     super.initState();
-    // Auto reconnect on app start
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Reconnect will be handled by the pages themselves
+      WsStore().reconnect();
     });
   }
 
