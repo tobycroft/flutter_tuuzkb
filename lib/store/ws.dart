@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 /// HID按键名称映射表（与Vue版本一致）
 final Map<String, String> hidKeyNameMap = {
@@ -143,6 +143,7 @@ class WsStore {
 
   // Connection
   WebSocketChannel? _channel;
+  StreamSubscription? _streamSubscription;
   bool _connected = false;
   Timer? _heartbeatTimer;
   Timer? _reconnectTimer;
@@ -282,7 +283,8 @@ class WsStore {
       return;
     }
 
-    _channel!.stream.listen(
+    _streamSubscription?.cancel();
+    _streamSubscription = _channel!.stream.listen(
       (event) {
         if (event == 'update') {
           requestInfo();
@@ -327,6 +329,8 @@ class WsStore {
   }
 
   void disconnectWebSocket() {
+    _streamSubscription?.cancel();
+    _streamSubscription = null;
     _channel?.sink.close();
     _channel = null;
     _connected = false;
