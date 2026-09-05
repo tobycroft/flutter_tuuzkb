@@ -1,188 +1,272 @@
-name: Build and Release
+  name: Build and Release
 
-on:
-  push:
-    branches:
-      - main
-    tags:
-      - "v*"
+  on:
+    push:
+      branches:
+        - main
+      tags:
+        - "v*"
 
-  workflow_dispatch:
+    workflow_dispatch:
 
-permissions:
-  contents: write
+  # ------------------------------------------------------------
+  # GitHub Actions permissions
+  # ------------------------------------------------------------
+  permissions:
+    contents: write
 
-concurrency:
-  group: build-release-${{ github.ref }}
-  cancel-in-progress: true
+  # ------------------------------------------------------------
+  # Prevent multiple builds of the same ref from running
+  # simultaneously.
+  # ------------------------------------------------------------
+  concurrency:
+    group: flutter-build-${{ github.ref }}
+    cancel-in-progress: true
 
-jobs:
-  build:
-    name: Build Flutter APK
-    runs-on: ubuntu-latest
+  jobs:
+    build:
+      name: Flutter Android Build
+      runs-on: ubuntu-latest
 
-    steps:
-      # ------------------------------------------------------------
-      # Checkout
-      # ------------------------------------------------------------
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      steps:
+        # ==========================================================
+        # 1. Checkout source
+        # ==========================================================
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
 
-      # ------------------------------------------------------------
-      # Java
-      # AGP 8.13 requires JDK 17
-      # ------------------------------------------------------------
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: gradle
+        # ==========================================================
+        # 2. Configure Java
+        #
+        # Android Gradle Plugin 8.x requires Java 17.
+        # ==========================================================
+        - name: Set up JDK 17
+          uses: actions/setup-java@v4
+          with:
+            distribution: temurin
+            java-version: "17"
+            cache: gradle
 
-      # ------------------------------------------------------------
-      # Flutter
-      # ------------------------------------------------------------
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.27.0"
-          channel: stable
-          cache: true
+        # ==========================================================
+        # 3. Configure Flutter
+        # ==========================================================
+        - name: Set up Flutter
+          uses: subosito/flutter-action@v2
+          with:
+            flutter-version: "3.27.0"
+            channel: stable
+            cache: true
 
-      # ------------------------------------------------------------
-      # Show build environment
-      # ------------------------------------------------------------
-      - name: Show build environment
-        run: |
-          echo "===== Flutter ====="
-          flutter --version
+        # ==========================================================
+        # 4. Configure Android SDK
+        #
+        # ubuntu-latest already contains Android SDK, but we explicitly
+        # install the required components to make the CI environment
+        # deterministic.
+        # ==========================================================
+        - name: Set up Android SDK
+          uses: android-actions/setup-android@v3
 
-          echo
-          echo "===== Dart ====="
-          dart --version
+        - name: Install Android SDK components
+          run: |
+            sdkmanager --install \
+              "platform-tools" \
+              "platforms;android-35" \
+              "build-tools;35.0.0"
+            
+            yes | sdkmanager --licenses >/dev/null || true
 
-          echo
-          echo "===== Java ====="
-          java -version
+        # ==========================================================
+        # 5. Display complete build environment
+        # ==========================================================
+        - name: Show build environment
+          run: |
+            echo "=================================================="
+            echo "Flutter"
+            echo "=================================================="
+            flutter --version
+            
+            echo
+            echo "=================================================="
+            echo "Dart"
+            echo "=================================================="
+            dart --version
+            
+            echo
+            echo "=================================================="
+            echo "Java"
+            echo "=================================================="
+            java -version
+            
+            echo
+            echo "=================================================="
+            echo "Android SDK"
+            echo "=================================================="
+            echo "ANDROID_HOME=$ANDROID_HOME"
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+            
+            echo
+            echo "=================================================="
+            echo "Android SDK Packages"
+            echo "=================================================="
+            sdkmanager --list_installed | grep -E \
+              "platform-tools|platforms;android-35|build-tools;35.0.0" || true
+            
+            echo
+            echo "=================================================="
+            echo "Gradle Wrapper"
+            echo "=================================================="
+            
+            if [ -f android/gradle/wrapper/gradle-wrapper.properties ]; then
+              cat android/gradle/wrapper/gradle-wrapper.properties
+            else
+              echo "gradle-wrapper.properties not found"
+            fi
 
-          echo
-          echo "===== Gradle Wrapper ====="
-          grep distributionUrl android/gradle/wrapper/gradle-wrapper.properties
+        # ==========================================================
+        # 6. Configure Gradle
+        #
+        # AGP 8.13.x requires Gradle 8.13.
+        #
+        # We modify only the Gradle distribution URL.
+        # We do NOT downgrade AGP/Kotlin/dependencies.
+        # ==========================================================
+        - name: Configure Gradle 8.13
+          run: |
+            test -f android/gradle/wrapper/gradle-wrapper.properties
+            
+            sed -i \
+              's#^distributionUrl=.*#distributionUrl=https\\://services.gradle.org/distributions/gradle-8.13-all.zip#' \
+              android/gradle/wrapper/gradle-wrapper.properties
+            
+            echo "Configured Gradle:"
+            grep "^distributionUrl=" \
+              android/gradle/wrapper/gradle-wrapper.properties
 
-          echo
-          echo "===== Android Gradle Plugin / Kotlin ====="
-          grep -E \
-            'com.android.application|org.jetbrains.kotlin.android' \
-            android/settings.gradle.kts || true
+        # ==========================================================
+        # 7. Make gradlew executable if it exists
+        #
+        # Flutter projects normally contain gradlew.
+        # We do not generate it here.
+        # ==========================================================
+        - name: Prepare Gradle wrapper
+          run: |
+            if [ -f android/gradlew ]; then
+              chmod +x android/gradlew
+              echo "Gradle wrapper found."
+            else
+              echo "::warning::android/gradlew is missing."
+            fi
 
-      # ------------------------------------------------------------
-      # Make sure Gradle version matches AGP 8.13
-      #
-      # AGP 8.13 requires Gradle 8.13.
-      #
-      # We modify ONLY the wrapper version.
-      # We do NOT downgrade AGP/Kotlin in CI.
-      # ------------------------------------------------------------
-      - name: Configure Gradle 8.13
-        working-directory: android
-        run: |
-          ./gradlew wrapper --gradle-version 8.13 --distribution-type all
+        # ==========================================================
+        # 8. Flutter doctor
+        # ==========================================================
+        - name: Flutter doctor
+          run: |
+            flutter doctor -v
 
-          echo
-          echo "Gradle wrapper configured:"
-          grep distributionUrl gradle/wrapper/gradle-wrapper.properties
+        # ==========================================================
+        # 9. Clean previous build
+        # ==========================================================
+        - name: Flutter clean
+          run: flutter clean
 
-      # ------------------------------------------------------------
-      # Verify Gradle
-      # ------------------------------------------------------------
-      - name: Verify Gradle
-        working-directory: android
-        run: ./gradlew --version
+        # ==========================================================
+        # 10. Resolve Dart / Flutter dependencies
+        # ==========================================================
+        - name: Install dependencies
+          run: flutter pub get
 
-      # ------------------------------------------------------------
-      # Flutter clean
-      # ------------------------------------------------------------
-      - name: Clean
-        run: flutter clean
+        # ==========================================================
+        # 11. Static analysis
+        # ==========================================================
+        - name: Analyze
+          run: flutter analyze
 
-      # ------------------------------------------------------------
-      # Get dependencies
-      # ------------------------------------------------------------
-      - name: Install dependencies
-        run: flutter pub get
+        # ==========================================================
+        # 12. Build release APK
+        # ==========================================================
+        - name: Build release APK
+          run: |
+            flutter build apk \
+              --release \
+              --verbose
 
-      # ------------------------------------------------------------
-      # Static analysis
-      # ------------------------------------------------------------
-      - name: Analyze
-        run: flutter analyze
+        # ==========================================================
+        # 13. Prepare release files
+        # ==========================================================
+        - name: Prepare APK
+          run: |
+            set -e
+            
+            mkdir -p release
+            
+            APK="build/app/outputs/flutter-apk/app-release.apk"
+            
+            if [ ! -f "$APK" ]; then
+              echo "::error::APK was not generated."
+              exit 1
+            fi
+            
+            cp \
+              "$APK" \
+              "release/flutter_tuuzkb-release.apk"
+            
+            echo
+            echo "APK generated successfully:"
+            ls -lh release/flutter_tuuzkb-release.apk
 
-      # ------------------------------------------------------------
-      # Build release APK
-      # ------------------------------------------------------------
-      - name: Build APK
-        run: flutter build apk --release
+        # ==========================================================
+        # 14. Upload GitHub Actions Artifact
+        # ==========================================================
+        - name: Upload APK artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: flutter_tuuzkb-release
+            path: release/flutter_tuuzkb-release.apk
+            if-no-files-found: error
+            retention-days: 30
 
-      # ------------------------------------------------------------
-      # Prepare release directory
-      # ------------------------------------------------------------
-      - name: Prepare APK
-        run: |
-          mkdir -p release
+        # ==========================================================
+        # 15. Create GitHub Release
+        #
+        # Only triggered by:
+        #
+        #   v1.0.0
+        #   v1.2.3
+        #   v2.0.0-beta.1
+        # ==========================================================
+        - name: Create GitHub Release
+          if: startsWith(github.ref, 'refs/tags/')
+          uses: softprops/action-gh-release@v2
+          with:
+            files: release/flutter_tuuzkb-release.apk
+            generate_release_notes: true
+            fail_on_unmatched_files: true
 
-          cp \
-            build/app/outputs/flutter-apk/app-release.apk \
-            release/flutter_tuuzkb-release.apk
-
-          ls -lh release/flutter_tuuzkb-release.apk
-
-      # ------------------------------------------------------------
-      # Upload GitHub Actions artifact
-      # ------------------------------------------------------------
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: flutter_tuuzkb-release
-          path: release/flutter_tuuzkb-release.apk
-          if-no-files-found: error
-          retention-days: 30
-
-      # ------------------------------------------------------------
-      # GitHub Release
-      #
-      # Only runs when pushing a v* tag.
-      # Example:
-      #
-      #   git tag v1.0.0
-      #   git push origin v1.0.0
-      # ------------------------------------------------------------
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: release/flutter_tuuzkb-release.apk
-          generate_release_notes: true
-          fail_on_unmatched_files: true
-
-      # ------------------------------------------------------------
-      # Commit APK back to main
-      #
-      # Only runs for normal pushes to main.
-      # ------------------------------------------------------------
-      - name: Commit APK to main
-        if: github.ref == 'refs/heads/main'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add release/flutter_tuuzkb-release.apk
-
-          if git diff --cached --quiet; then
-            echo "APK has not changed. Nothing to commit."
-            exit 0
-          fi
-
-          git commit -m "chore: auto build APK [skip ci]"
-          git push origin HEAD:main
+        # ==========================================================
+        # 16. Commit APK to main
+        #
+        # Only runs on main branch.
+        # ==========================================================
+        - name: Commit APK to main
+          if: github.ref == 'refs/heads/main'
+          run: |
+            set -e
+            
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            
+            git add release/flutter_tuuzkb-release.apk
+            
+            if git diff --cached --quiet; then
+              echo "APK has not changed."
+              exit 0
+            fi
+            
+            git commit \
+              -m "chore: auto build APK [skip ci]"
+            
+            git push origin HEAD:main
