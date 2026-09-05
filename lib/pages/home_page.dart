@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../store/ws.dart';
 
 class HomePage extends StatefulWidget {
@@ -34,7 +36,7 @@ class _HomePageState extends State<HomePage> {
     ws.sendMessage({
       'route': 'semi-config',
       'type': 'switch_output',
-      'data': {'name': name}
+      'data': {'name': name},
     });
     _cfggetTimer?.cancel();
     _cfggetTimer = Timer(Duration(seconds: 1), () {
@@ -82,9 +84,12 @@ class _HomePageState extends State<HomePage> {
 
   Color _getStatusColor() {
     switch (ws.connectionClass) {
-      case 'status-success': return Colors.green[700]!;
-      case 'status-progress': return Colors.blue[700]!;
-      default: return Colors.red[700]!;
+      case 'status-success':
+        return Colors.green[700]!;
+      case 'status-progress':
+        return Colors.blue[700]!;
+      default:
+        return Colors.red[700]!;
     }
   }
 
@@ -167,7 +172,11 @@ class _ConnectionBanner extends StatelessWidget {
       child: Text(
         message,
         textAlign: TextAlign.center,
-        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -196,51 +205,95 @@ class _OutputAndInfoPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Output switcher
-        if (outputs.isNotEmpty) ...[
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: outputs.map((dev) {
-              final selected = currentOutput == dev.name;
-              return ActionChip(
-                label: Text('输出 ${dev.name}'),
-                backgroundColor: selected ? Color(0xFF3CC51F) : Color(0xFF2C2C2E),
-                labelStyle: TextStyle(
-                  color: selected ? Colors.white : Colors.grey[300],
-                  fontSize: 12,
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Color(0xFF1C1C1E),
+        border: Border.all(color: Color(0xFF2A2A2A)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Output switcher
+            if (outputs.isNotEmpty)
+              Expanded(
+                child: Row(
+                  children: outputs.map((dev) {
+                    final selected = currentOutput == dev.name;
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: outputs.last == dev ? 0 : 6,
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => onSwitchOutput(dev.name),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: selected
+                                ? Color(0xFF3CC51F)
+                                : Color(0xFF2C2C2E),
+                            foregroundColor: selected
+                                ? Colors.white
+                                : Color(0xFFDDDDDD),
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              side: BorderSide(
+                                color: selected
+                                    ? Color(0xFF3CC51F)
+                                    : Color(0xFF3A3A3C),
+                              ),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            '输出 ${dev.name}',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
-                onPressed: () => onSwitchOutput(dev.name),
-              );
-            }).toList(),
-          ),
-          SizedBox(height: 8),
-        ],
-
-        // Compact info
-        GestureDetector(
-          onTap: onTapMac,
-          child: Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Color(0xFF2C2C2E),
-              border: Border.all(color: Color(0xFF3A3A3C)),
-              borderRadius: BorderRadius.circular(8),
+              ),
+            SizedBox(width: 10),
+            // Compact info
+            Expanded(
+              child: GestureDetector(
+                onTap: onTapMac,
+                child: Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: macmode ? Color(0xFF2A3A2A) : Color(0xFF2C2C2E),
+                    border: Border.all(
+                      color: macmode ? Color(0xFF3CC51F) : Color(0xFF3A3A3C),
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _InfoItem(
+                        label: 'VID',
+                        value: vid.isNotEmpty ? vid : '—',
+                      ),
+                      _InfoItem(
+                        label: 'PID',
+                        value: pid.isNotEmpty ? pid : '—',
+                      ),
+                      _InfoItem(label: 'Baud', value: baud > 0 ? '$baud' : '—'),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _InfoItem(label: 'VID', value: vid.isNotEmpty ? vid : '—'),
-                _InfoItem(label: 'PID', value: pid.isNotEmpty ? pid : '—'),
-                _InfoItem(label: 'Baud', value: baud > 0 ? '$baud' : '—'),
-              ],
-            ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -254,14 +307,24 @@ class _InfoItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+        Text(
+          label,
+          style: TextStyle(
+            color: Color(0xFF888888),
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         SizedBox(height: 2),
-        Text(value, style: TextStyle(
-          color: Colors.grey[200],
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          fontFamily: 'Courier New',
-        )),
+        Text(
+          value,
+          style: TextStyle(
+            color: Color(0xFFE0E0E0),
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'Courier New',
+          ),
+        ),
       ],
     );
   }
@@ -283,16 +346,34 @@ class _MaskPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('屏蔽状态', style: TextStyle(color: Colors.grey[400], fontSize: 14, fontWeight: FontWeight.w700)),
+          Text(
+            '屏蔽状态',
+            style: TextStyle(
+              color: Colors.grey[400],
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           SizedBox(height: 8),
           Wrap(
             spacing: 6,
             runSpacing: 6,
-            children: keys.map((k) => Chip(
-              label: Text(k.display, style: TextStyle(fontSize: 11, color: Colors.white)),
-              backgroundColor: Color(0xFF8B0000),
-              deleteIcon: Icon(Icons.close, size: 14, color: Colors.white70),
-            )).toList(),
+            children: keys
+                .map(
+                  (k) => Chip(
+                    label: Text(
+                      k.display,
+                      style: TextStyle(fontSize: 11, color: Colors.white),
+                    ),
+                    backgroundColor: Color(0xFF8B0000),
+                    deleteIcon: Icon(
+                      Icons.close,
+                      size: 14,
+                      color: Colors.white70,
+                    ),
+                  ),
+                )
+                .toList(),
           ),
         ],
       ),
@@ -381,8 +462,18 @@ class _SliderRow extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('$label: $value', style: TextStyle(color: Colors.grey[300], fontSize: 13)),
-            Text('$value', style: TextStyle(color: Color(0xFF3CC51F), fontSize: 13, fontWeight: FontWeight.w600)),
+            Text(
+              '$label: $value',
+              style: TextStyle(color: Colors.grey[300], fontSize: 13),
+            ),
+            Text(
+              '$value',
+              style: TextStyle(
+                color: Color(0xFF3CC51F),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
         Slider(
@@ -419,32 +510,88 @@ class _BottomBar extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Trigger mode
-        Text('触发模式', style: TextStyle(color: Colors.grey[400], fontSize: 13, fontWeight: FontWeight.w700)),
+        Text(
+          '触发模式',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         SizedBox(height: 6),
         Row(
           children: [
-            _ModeButton(label: '关闭', selected: mode == 0, color: Color(0xFF3CC51F), onTap: () => onModeChange(0)),
+            _ModeButton(
+              label: '关闭',
+              selected: mode == 0,
+              color: Color(0xFF3CC51F),
+              onTap: () => onModeChange(0),
+            ),
             SizedBox(width: 6),
-            _ModeButton(label: 'On-Q', selected: mode == 1, color: Color(0xFF3CC51F), onTap: () => onModeChange(1)),
+            _ModeButton(
+              label: 'On-Q',
+              selected: mode == 1,
+              color: Color(0xFF3CC51F),
+              onTap: () => onModeChange(1),
+            ),
             SizedBox(width: 6),
-            _ModeButton(label: 'On-Whel', selected: mode == 2, color: Color(0xFF3CC51F), onTap: () => onModeChange(2)),
+            _ModeButton(
+              label: 'On-Whel',
+              selected: mode == 2,
+              color: Color(0xFF3CC51F),
+              onTap: () => onModeChange(2),
+            ),
           ],
         ),
         SizedBox(height: 12),
 
         // Endpoint mode
-        Text('键盘模式', style: TextStyle(color: Colors.grey[400], fontSize: 13, fontWeight: FontWeight.w700)),
+        Text(
+          '键盘模式',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         SizedBox(height: 6),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
+        Row(
           children: [
-            _ModeButton(label: 'Ste', selected: endpointMode == 0, onTap: () => onEndpointChange(0)),
-            _ModeButton(label: 'Dym', selected: endpointMode == 1, onTap: () => onEndpointChange(1)),
-            _ModeButton(label: 'Wde', selected: endpointMode == 2, onTap: () => onEndpointChange(2)),
-            _ModeButton(label: 'Ato', selected: endpointMode == 3, onTap: () => onEndpointChange(3)),
-            _ModeButton(label: 'Atw', selected: endpointMode == 4, onTap: () => onEndpointChange(4)),
-            _ModeButton(label: 'Man', selected: endpointMode == 5, onTap: () => onEndpointChange(5)),
+            _ModeButton(
+              label: 'Ste',
+              selected: endpointMode == 0,
+              onTap: () => onEndpointChange(0),
+            ),
+            SizedBox(width: 6),
+            _ModeButton(
+              label: 'Dym',
+              selected: endpointMode == 1,
+              onTap: () => onEndpointChange(1),
+            ),
+            SizedBox(width: 6),
+            _ModeButton(
+              label: 'Wde',
+              selected: endpointMode == 2,
+              onTap: () => onEndpointChange(2),
+            ),
+            SizedBox(width: 6),
+            _ModeButton(
+              label: 'Ato',
+              selected: endpointMode == 3,
+              onTap: () => onEndpointChange(3),
+            ),
+            SizedBox(width: 6),
+            _ModeButton(
+              label: 'Atw',
+              selected: endpointMode == 4,
+              onTap: () => onEndpointChange(4),
+            ),
+            SizedBox(width: 6),
+            _ModeButton(
+              label: 'Man',
+              selected: endpointMode == 5,
+              onTap: () => onEndpointChange(5),
+            ),
           ],
         ),
       ],
@@ -478,7 +625,10 @@ class _ModeButton extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        child: Text(
+          label,
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
