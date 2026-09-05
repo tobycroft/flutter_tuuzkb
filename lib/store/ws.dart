@@ -111,6 +111,7 @@ class WsStore {
   void setEndpointDelay(int v) { _endpointDelay = v; _notifyListeners(); }
   void setMode(int v) { _mode = v; _notifyListeners(); }
   void setEndpointDynamicMode(int v) { _endpointDynamicMode = v; _notifyListeners(); }
+  set pollingRate(int v) { _pollingRate = v; _notifyListeners(); }
 
   String getKeyName(String code) {
     if (code.isEmpty) return '';
