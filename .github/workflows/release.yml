@@ -1,33 +1,62 @@
   name: Flutter Android Release
 
+  # ============================================================
+  # Trigger
+  # ============================================================
   on:
+    # 推送 v1.0.0 / v1.2.3 之类的 Tag 时自动发布 Release
     push:
       tags:
         - 'v*.*.*'
 
+    # 允许在 GitHub Actions 页面手动执行
     workflow_dispatch:
 
+
+  # ============================================================
+  # GitHub Actions permissions
+  #
+  # GITHUB_TOKEN 是 GitHub 自动提供的临时 Token，
+  # 不需要在 Repository Secrets 中手动创建。
+  #
+  # contents: write 用于：
+  #   - 创建 GitHub Release
+  #   - 上传 APK
+  #   - 上传 AAB
+  # ============================================================
   permissions:
     contents: write
 
+
+  # ============================================================
+  # Build Job
+  # ============================================================
   jobs:
+
     build:
       name: Build Flutter Android
       runs-on: ubuntu-latest
 
       steps:
-        # --------------------------------------------------
-        # 1. Checkout
-        # --------------------------------------------------
+
+        # ======================================================
+        # Step 1: Checkout source code
+        # ======================================================
         - name: Checkout
           uses: actions/checkout@v4
 
-        # --------------------------------------------------
-        # 2. Setup Java / JDK
-        # --------------------------------------------------
-        # Flutter Android / Gradle 编译需要 JDK。
-        # 如果你的项目使用较新的 Android Gradle Plugin，
-        # 推荐 JDK 17。
+
+        # ======================================================
+        # Step 2: Setup JDK
+        #
+        # Flutter Android:
+        # Flutter
+        #   -> Gradle
+        #      -> Android Gradle Plugin
+        #         -> Kotlin / Java
+        #
+        # JDK 17 是目前较为稳妥的选择。
+        # ======================================================
         - name: Setup JDK 17
           uses: actions/setup-java@v4
           with:
@@ -35,75 +64,179 @@
             java-version: '17'
             cache: gradle
 
-        # --------------------------------------------------
-        # 3. Setup Flutter
-        # --------------------------------------------------
+
+        # ======================================================
+        # Step 3: Setup Flutter
+        # ======================================================
         - name: Setup Flutter
           uses: subosito/flutter-action@v2
           with:
             channel: stable
             cache: true
 
-        # --------------------------------------------------
-        # 4. Flutter 环境检查
-        # --------------------------------------------------
+
+        # ======================================================
+        # Step 4: Flutter environment
+        # ======================================================
         - name: Flutter Doctor
           run: flutter doctor -v
 
-        # --------------------------------------------------
-        # 5. Check Android Gradle Wrapper
-        # --------------------------------------------------
-        - name: Check Gradle Wrapper
+
+        # ======================================================
+        # Step 5: Check Android project
+        # ======================================================
+        - name: Check Flutter Android Project
           shell: bash
           run: |
             set -e
             
-            if [ ! -f "android/gradlew" ]; then
-              echo "::error::android/gradlew is missing."
+            if [ ! -d "android" ]; then
+              echo "::error::Flutter Android project directory is missing."
               echo
-              echo "Your Flutter Android project must contain:"
-              echo "  android/gradlew"
-              echo "  android/gradlew.bat"
-              echo "  android/gradle/wrapper/gradle-wrapper.jar"
-              echo "  android/gradle/wrapper/gradle-wrapper.properties"
+              echo "Expected directory:"
+              echo "  android/"
               exit 1
             fi
             
+            if [ ! -f "android/settings.gradle" ] && \
+               [ ! -f "android/settings.gradle.kts" ]; then
+              echo "::error::Android Gradle settings file is missing."
+              echo
+              echo "Expected one of:"
+              echo "  android/settings.gradle"
+              echo "  android/settings.gradle.kts"
+              exit 1
+            fi
+            
+            echo "Flutter Android project detected."
+        
+
+        # ======================================================
+        # Step 6: Prepare Gradle Wrapper
+        #
+        # 如果仓库已经存在 Gradle Wrapper：
+        #     直接使用
+        #
+        # 如果不存在：
+        #     自动生成 Gradle Wrapper
+        #
+        # 这样不要求仓库必须提交：
+        #     android/gradlew
+        #     android/gradlew.bat
+        #     android/gradle/wrapper/*
+        # ======================================================
+        - name: Prepare Gradle Wrapper
+          shell: bash
+          run: |
+            set -e
+            
+            echo "Checking Gradle wrapper..."
+            
+            if [ -f "android/gradlew" ]; then
+              echo "Gradle wrapper already exists."
+            
+              chmod +x android/gradlew
+            
+            else
+              echo "::warning::android/gradlew is missing."
+              echo "Generating Gradle wrapper..."
+            
+              cd android
+            
+              # ------------------------------------------------
+              # 优先使用系统 Gradle
+              # ------------------------------------------------
+              if command -v gradle >/dev/null 2>&1; then
+            
+                echo "System Gradle found:"
+                gradle --version
+            
+                gradle wrapper
+            
+              else
+            
+                echo "::error::System Gradle is not installed."
+                echo
+                echo "Unable to generate Gradle wrapper automatically."
+                echo
+                echo "Please commit the Gradle wrapper into the repository:"
+                echo
+                echo "  android/gradlew"
+                echo "  android/gradlew.bat"
+                echo "  android/gradle/wrapper/gradle-wrapper.jar"
+                echo "  android/gradle/wrapper/gradle-wrapper.properties"
+                echo
+                exit 1
+            
+              fi
+            
+              cd ..
+            fi
+            
+            echo
+            echo "Gradle wrapper:"
+            ls -lh android/gradlew
+            
+            echo
+            echo "Gradle wrapper directory:"
+            ls -lh android/gradle/wrapper/ || true
+        
+
+        # ======================================================
+        # Step 7: Verify Gradle
+        # ======================================================
+        - name: Verify Gradle
+          shell: bash
+          run: |
+            set -e
+            
             chmod +x android/gradlew
             
-            echo "Gradle wrapper:"
             cd android
+            
             ./gradlew --version
+        
 
-        # --------------------------------------------------
-        # 6. Flutter dependencies
-        # --------------------------------------------------
+        # ======================================================
+        # Step 8: Get Flutter dependencies
+        # ======================================================
         - name: Get Flutter dependencies
           run: flutter pub get
 
-        # --------------------------------------------------
-        # 7. Analyze
-        # --------------------------------------------------
+
+        # ======================================================
+        # Step 9: Flutter Analyze
+        #
+        # 如果你不希望因为 lint/analyze 问题阻止 Release，
+        # 可以删除这个步骤。
+        # ======================================================
         - name: Flutter Analyze
           run: flutter analyze
 
-        # --------------------------------------------------
-        # 8. Build APK
-        # --------------------------------------------------
+
+        # ======================================================
+        # Step 10: Build APK
+        #
+        # Flutter 会自动调用 Android Gradle / Kotlin / Java。
+        # ======================================================
         - name: Build APK
           run: |
             flutter build apk --release
+        
 
-        # --------------------------------------------------
-        # 9. Build Android App Bundle
-        # --------------------------------------------------
+        # ======================================================
+        # Step 11: Build Android App Bundle
+        #
+        # AAB 用于 Google Play。
+        # ======================================================
         - name: Build AAB
           run: |
             flutter build appbundle --release
+        
 
-        # --------------------------------------------------
-        # 10. Rename artifacts
-        # --------------------------------------------------
+        # ======================================================
+        # Step 12: Prepare release files
+        # ======================================================
         - name: Prepare Release Files
           shell: bash
           run: |
@@ -111,42 +244,80 @@
             
             mkdir -p release
             
-            cp build/app/outputs/flutter-apk/app-release.apk \
-               release/app-release.apk
+            # APK
+            if [ ! -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
+              echo "::error::APK was not generated."
+              exit 1
+            fi
             
-            cp build/app/outputs/bundle/release/app-release.aab \
-               release/app-release.aab
+            cp \
+              build/app/outputs/flutter-apk/app-release.apk \
+              release/app-release.apk
             
+            
+            # AAB
+            if [ ! -f "build/app/outputs/bundle/release/app-release.aab" ]; then
+              echo "::error::AAB was not generated."
+              exit 1
+            fi
+            
+            cp \
+              build/app/outputs/bundle/release/app-release.aab \
+              release/app-release.aab
+            
+            
+            echo
             echo "Release files:"
             ls -lh release/
+        
 
-        # --------------------------------------------------
-        # 11. Upload artifacts
-        # --------------------------------------------------
+        # ======================================================
+        # Step 13: Upload workflow artifacts
+        #
+        # 即使 Release 创建失败，也可以在 Actions 页面
+        # 下载编译产物进行排查。
+        # ======================================================
         - name: Upload APK Artifact
           uses: actions/upload-artifact@v4
           with:
             name: flutter-android-apk
             path: release/app-release.apk
+            if-no-files-found: error
+
 
         - name: Upload AAB Artifact
           uses: actions/upload-artifact@v4
           with:
             name: flutter-android-aab
             path: release/app-release.aab
+            if-no-files-found: error
 
-        # --------------------------------------------------
-        # 12. Create GitHub Release
-        # --------------------------------------------------
+
+        # ======================================================
+        # Step 14: Create GitHub Release
+        #
+        # 只有 Tag 触发时才创建 Release。
+        #
+        # workflow_dispatch 手动执行不会创建 Release。
+        #
+        # GITHUB_TOKEN 由 GitHub 自动提供，
+        # 不需要 Repository Secrets。
+        # ======================================================
         - name: Create GitHub Release
           if: startsWith(github.ref, 'refs/tags/v')
           uses: softprops/action-gh-release@v2
           with:
+
+            # 上传到 Release 的文件
             files: |
               release/app-release.apk
               release/app-release.aab
+
+            # 自动根据 Commit 生成 Release Notes
             generate_release_notes: true
+
+            # 直接正式发布
             draft: false
+
+            # 不是 Pre-release
             prerelease: false
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
