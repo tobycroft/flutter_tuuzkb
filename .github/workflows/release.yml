@@ -4,10 +4,10 @@
   # Trigger
   # ============================================================
   on:
-    # 推送 v1.0.0 / v1.2.3 之类的 Tag 时自动发布 Release
+    # 推送 main 分支时自动构建
     push:
-      tags:
-        - 'v*.*.*'
+      branches:
+        - 'main'
 
     # 允许在 GitHub Actions 页面手动执行
     workflow_dispatch:
