@@ -42,7 +42,7 @@ class _TuuzKBAppState extends State<TuuzKBApp> {
         colorScheme: ColorScheme.dark(
           primary: const Color(0xFF3CC51F),
           surface: const Color(0xFF1C1C1E),
-          onSurface: Colors.grey!.shade300,
+          onSurface: Colors.grey.shade300,
         ),
         useMaterial3: true,
       ),
