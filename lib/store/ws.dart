@@ -174,6 +174,8 @@ class WsStore {
   String _serial = '';
 
   bool _oledBlackScreen = false;
+  bool _isScreenBlack = false;
+  Timer? _blackScreenTimer;
 
   final List<VoidCallback> _listeners = [];
 
@@ -200,6 +202,7 @@ class WsStore {
   String get serial => _serial;
   bool get isConnected => _connected;
   bool get oledBlackScreen => _oledBlackScreen;
+  bool get isScreenBlack => _isScreenBlack;
 
   // Setters for fields modified by pages
   set currentOutput(String v) {
@@ -239,7 +242,36 @@ class WsStore {
 
   set oledBlackScreen(bool v) {
     _oledBlackScreen = v;
+    _cancelBlackScreenTimer();
+    if (v) {
+      _startBlackScreenTimer();
+    } else {
+      _isScreenBlack = false;
+    }
     _notifyListeners();
+  }
+
+  void _startBlackScreenTimer() {
+    _cancelBlackScreenTimer();
+    _blackScreenTimer = Timer(const Duration(minutes: 2), () {
+      _isScreenBlack = true;
+      _notifyListeners();
+    });
+  }
+
+  void _cancelBlackScreenTimer() {
+    _blackScreenTimer?.cancel();
+    _blackScreenTimer = null;
+  }
+
+  void _onNonPingPongData() {
+    if (_isScreenBlack) {
+      _isScreenBlack = false;
+      _notifyListeners();
+    }
+    if (_oledBlackScreen) {
+      _startBlackScreenTimer();
+    }
   }
 
   String getKeyName(String code) {
@@ -297,10 +329,7 @@ class WsStore {
     _streamSubscription = _channel!.stream.listen(
       (event) {
         if (event == 'update') {
-          if (_oledBlackScreen) {
-            _oledBlackScreen = false;
-            _notifyListeners();
-          }
+          _onNonPingPongData();
           requestInfo();
           return;
         }
@@ -309,10 +338,7 @@ class WsStore {
           _pongTimeoutTimer?.cancel();
           return;
         }
-        if (_oledBlackScreen) {
-          _oledBlackScreen = false;
-          _notifyListeners();
-        }
+        _onNonPingPongData();
         try {
           final data = _decodeJson(event);
           if (data != null) _updateFormData(data);

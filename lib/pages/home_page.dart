@@ -100,85 +100,69 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Connection status
-                  _ConnectionBanner(
-                    message: ws.connectionMessage,
-                    color: _getStatusColor(),
-                  ),
-                  SizedBox(height: 12),
-
-                  // Output switcher + compact info
-                  _OutputAndInfoPanel(
-                    outputs: ws.outputs,
-                    currentOutput: ws.currentOutput,
-                    vid: ws.vid,
-                    pid: ws.pid,
-                    baud: ws.baud,
-                    macmode: ws.macmode,
-                    onSwitchOutput: _switchOutput,
-                    onTapMac: () => ws.cmdFunc('toggle_macmode'),
-                  ),
-                  SizedBox(height: 12),
-
-                  // Mask panel
-                  if (ws.maskButton.isNotEmpty) ...[
-                    _MaskPanel(keys: ws.maskButton),
-                    SizedBox(height: 12),
-                  ],
-
-                  // Sliders
-                  _SlidersPanel(
-                    randomValue: ws.endpointBeforeDelayRandom,
-                    beforeValue: ws.endpointBeforeDelay,
-                    delayValue: ws.endpointDelay,
-                    onRandomChange: (v) => _onSliderChange('random', v),
-                    onBeforeChange: (v) => _onSliderChange('beforeDelay', v),
-                    onDelayChange: (v) => _onSliderChange('delay', v),
-                  ),
-                  SizedBox(height: 12),
-
-                  // Bottom bar: mode buttons
-                  _BottomBar(
-                    mode: ws.mode,
-                    endpointMode: ws.endpointDynamicMode,
-                    onModeChange: _setMode,
-                    onEndpointChange: _setEndpointMode,
-                  ),
-                  SizedBox(height: 12),
-
-                  // OLED black screen toggle
-                  _OledBlackScreenToggle(
-                    isEnabled: ws.oledBlackScreen,
-                    onToggle: (v) {
-                      ws.oledBlackScreen = v;
-                    },
-                  ),
-                ],
+      backgroundColor: const Color(0xFF0D0D0D),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Connection status
+              _ConnectionBanner(
+                message: ws.connectionMessage,
+                color: _getStatusColor(),
               ),
-            ),
-          ),
-          // OLED black screen overlay
-          if (ws.oledBlackScreen)
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () {
-                  ws.oledBlackScreen = false;
+              const SizedBox(height: 12),
+
+              // Output switcher + compact info
+              _OutputAndInfoPanel(
+                outputs: ws.outputs,
+                currentOutput: ws.currentOutput,
+                vid: ws.vid,
+                pid: ws.pid,
+                baud: ws.baud,
+                macmode: ws.macmode,
+                onSwitchOutput: _switchOutput,
+                onTapMac: () => ws.cmdFunc('toggle_macmode'),
+              ),
+              const SizedBox(height: 12),
+
+              // Mask panel
+              if (ws.maskButton.isNotEmpty) ...[
+                _MaskPanel(keys: ws.maskButton),
+                const SizedBox(height: 12),
+              ],
+
+              // Sliders
+              _SlidersPanel(
+                randomValue: ws.endpointBeforeDelayRandom,
+                beforeValue: ws.endpointBeforeDelay,
+                delayValue: ws.endpointDelay,
+                onRandomChange: (v) => _onSliderChange('random', v),
+                onBeforeChange: (v) => _onSliderChange('beforeDelay', v),
+                onDelayChange: (v) => _onSliderChange('delay', v),
+              ),
+              const SizedBox(height: 12),
+
+              // Bottom bar: mode buttons
+              _BottomBar(
+                mode: ws.mode,
+                endpointMode: ws.endpointDynamicMode,
+                onModeChange: _setMode,
+                onEndpointChange: _setEndpointMode,
+              ),
+              const SizedBox(height: 12),
+
+              // OLED black screen toggle
+              _OledBlackScreenToggle(
+                isEnabled: ws.oledBlackScreen,
+                onToggle: (v) {
+                  ws.oledBlackScreen = v;
                 },
-                child: Container(
-                  color: Colors.black,
-                ),
               ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

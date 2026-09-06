@@ -26,6 +26,7 @@ class TuuzKBApp extends StatefulWidget {
 
 class _TuuzKBAppState extends State<TuuzKBApp> {
   int _currentIndex = 0;
+  void Function()? _unsubscribe;
 
   final List<Widget> _pages = [
     const HomePage(),
@@ -36,9 +37,20 @@ class _TuuzKBAppState extends State<TuuzKBApp> {
   @override
   void initState() {
     super.initState();
+    _unsubscribe = WsStore().subscribe(_onStateChange);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       WsStore().reconnect();
     });
+  }
+
+  @override
+  void dispose() {
+    _unsubscribe?.call();
+    super.dispose();
+  }
+
+  void _onStateChange() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -55,37 +67,50 @@ class _TuuzKBAppState extends State<TuuzKBApp> {
         ),
         useMaterial3: true,
       ),
-      home: Scaffold(
-        backgroundColor: const Color(0xFF0D0D0D),
-        body: IndexedStack(
-          index: _currentIndex,
-          children: _pages,
-        ),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: const Color(0xFF1C1C1E),
-          selectedItemColor: const Color(0xFF3CC51F),
-          unselectedItemColor: Colors.grey[600],
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: '首页',
+      home: Stack(
+        children: [
+          Scaffold(
+            backgroundColor: const Color(0xFF0D0D0D),
+            body: IndexedStack(
+              index: _currentIndex,
+              children: _pages,
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings),
-              label: '硬件控制',
+            bottomNavigationBar: BottomNavigationBar(
+              currentIndex: _currentIndex,
+              onTap: (index) => setState(() => _currentIndex = index),
+              type: BottomNavigationBarType.fixed,
+              backgroundColor: const Color(0xFF1C1C1E),
+              selectedItemColor: const Color(0xFF3CC51F),
+              unselectedItemColor: Colors.grey[600],
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home_outlined),
+                  activeIcon: Icon(Icons.home),
+                  label: '首页',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.settings_outlined),
+                  activeIcon: Icon(Icons.settings),
+                  label: '硬件控制',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.sync_outlined),
+                  activeIcon: Icon(Icons.sync),
+                  label: '连接控制',
+                ),
+              ],
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.sync_outlined),
-              activeIcon: Icon(Icons.sync),
-              label: '连接控制',
+          ),
+          if (WsStore().isScreenBlack)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () {
+                  WsStore().oledBlackScreen = false;
+                },
+                child: Container(color: Colors.black),
+              ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
