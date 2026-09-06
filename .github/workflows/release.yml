@@ -1,13 +1,10 @@
-name: Flutter Release
+name: Flutter Auto Release
 
-# 触发条件：允许在 GitHub 网页端手动点击运行（推荐发版时使用）
 on:
   workflow_dispatch:
-  # 如果你想每次 push 到 main 都自动发布（需确保每次 push 前都改了版本号），取消下面两行的注释：
   # push:
   #   branches: [ main ]
 
-# 必须添加权限声明！允许 Action 自动生成 Tag 和创建 Release 页面
 permissions:
   contents: write
 
@@ -33,25 +30,58 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --release
-        
-      # 1. 从 pubspec.yaml 中提取版本号 (例如 1.0.0+1) 并加上 v 前缀
-      - name: Extract version from pubspec.yaml
+      # 1. 动态计算下一个版本号
+      - name: Calculate Next Version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # gh 命令需要 Token 权限
         run: |
-          # 提取 version 字段后面的值
-          VERSION=$(grep '^version: ' pubspec.yaml | awk '{print $2}')
-          # 将类似 v1.0.0+1 的字符串存入环境变量，供下一步使用
-          echo "APP_VERSION=v$VERSION" >> $GITHUB_ENV
-          echo "Extracted version: v$VERSION"
+          # 使用 gh cli 获取最新的 release tag，如果报错（比如没发过版）则返回空
+          LATEST_TAG=$(gh release view --json tagName -q ".tagName" 2>/dev/null || echo "")
+          
+          if [ -z "$LATEST_TAG" ]; then
+            echo "没有找到历史 Release，默认发布首个版本 v1.0.0"
+            NEW_VERSION="1.0.0"
+            NEW_TAG="v1.0.0"
+          else
+            echo "当前最新 Release 版本为: $LATEST_TAG"
+            
+            # 去除开头的 'v' 字符 (例如 v1.0.0 变成 1.0.0)
+            VERSION_NUM=${LATEST_TAG#v}
+            
+            # 使用 . 作为分隔符，拆分主版本、次版本、修订号
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NUM"
+            
+            # 如果解析失败，给个默认值
+            MAJOR=${MAJOR:-1}
+            MINOR=${MINOR:-0}
+            PATCH=${PATCH:-0}
+            
+            # 将最后一位修订号加 1
+            PATCH=$((PATCH + 1))
+            
+            # 组合新的版本号
+            NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+            NEW_TAG="v${NEW_VERSION}"
+          fi
+          
+          echo "计算出的新版本为: $NEW_TAG"
+          
+          # 写入环境变量，供后续步骤使用
+          echo "APP_VERSION=$NEW_TAG" >> $GITHUB_ENV
+          echo "BUILD_NAME=$NEW_VERSION" >> $GITHUB_ENV
 
-      # 2. 创建 GitHub Release 并上传 APK
+      # 2. 构建 APK（动态注入版本号）
+      - name: Build APK
+        # 使用 --build-name 将计算出的版本号（如 1.0.1）覆盖注入到 APK 中
+        run: flutter build apk --release --build-name=${{ env.BUILD_NAME }}
+        
+      # 3. 创建 Release 并上传
       - name: Create Release and Upload APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.APP_VERSION }}     # 使用提取出的版本号作为 Tag，如 v1.0.0+1
-          name: Release ${{ env.APP_VERSION }} # Release 标题
-          files: build/app/outputs/flutter-apk/app-release.apk # 需要附加的文件
-          generate_release_notes: true         # 自动生成基于 Commit 历史的更新日志
+          tag_name: ${{ env.APP_VERSION }}     
+          name: Release ${{ env.APP_VERSION }} 
+          files: build/app/outputs/flutter-apk/app-release.apk
+          generate_release_notes: true         
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 默认内置的 Token，无需手动配置
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
