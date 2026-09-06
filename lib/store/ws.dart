@@ -278,19 +278,23 @@ class WsStore {
 
   Future<void> setBlackScreenDelay(int seconds) async {
     _blackScreenDelaySeconds = seconds;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('black_screen_delay', seconds);
-    if (_oledBlackScreen && !_isScreenBlack) {
+    _oledBlackScreen = seconds > 0;
+    _cancelBlackScreenTimer();
+    _isScreenBlack = false;
+    if (_oledBlackScreen) {
       _startBlackScreenTimer();
     }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('black_screen_delay', seconds);
     _notifyListeners();
   }
 
   Future<void> loadBlackScreenDelay() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getInt('black_screen_delay');
-    if (saved != null && saved >= 5 && saved <= 600) {
+    if (saved != null && saved >= 0 && saved <= 120) {
       _blackScreenDelaySeconds = saved;
+      _oledBlackScreen = saved > 0;
     }
   }
 

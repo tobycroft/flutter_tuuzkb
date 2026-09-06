@@ -153,16 +153,7 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(height: 12),
 
-              // OLED black screen toggle
-              _OledBlackScreenToggle(
-                isEnabled: ws.oledBlackScreen,
-                onToggle: (v) {
-                  ws.oledBlackScreen = v;
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // Black screen delay slider
+              // OLED black screen unified control
               _BlackScreenDelaySlider(
                 delaySeconds: ws.blackScreenDelaySeconds,
                 onChanged: (v) {
@@ -655,78 +646,13 @@ class _ModeButton extends StatelessWidget {
   }
 }
 
-class _OledBlackScreenToggle extends StatelessWidget {
-  final bool isEnabled;
-  final Function(bool) onToggle;
-
-  const _OledBlackScreenToggle({
-    required this.isEnabled,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Color(0xFF1C1C1E),
-        border: Border.all(color: Color(0xFF2A2A2A)),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.phone_android,
-                color: isEnabled ? Color(0xFF3CC51F) : Colors.grey[500],
-                size: 20,
-              ),
-              SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'OLED息屏',
-                    style: TextStyle(
-                      color: Colors.grey[300],
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    isEnabled ? '黑屏已开启' : '黑屏已关闭',
-                    style: TextStyle(
-                      color: isEnabled ? Color(0xFF3CC51F) : Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          Switch(
-            value: isEnabled,
-            onChanged: onToggle,
-            activeColor: Color(0xFF3CC51F),
-            activeTrackColor: Color(0xFF3CC51F).withValues(alpha: 0.3),
-            inactiveThumbColor: Colors.grey[500],
-            inactiveTrackColor: Colors.grey[800],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _BlackScreenDelaySlider extends StatelessWidget {
   final int delaySeconds;
   final Function(int) onChanged;
 
-  static const int _minSeconds = 5;
-  static const int _maxSeconds = 600;
+  static const int _minSeconds = 0;
+  static const int _maxSeconds = 120;
+  static const int _step = 5;
 
   const _BlackScreenDelaySlider({
     required this.delaySeconds,
@@ -734,6 +660,7 @@ class _BlackScreenDelaySlider extends StatelessWidget {
   });
 
   String _formatDuration(int totalSeconds) {
+    if (totalSeconds == 0) return '关闭';
     if (totalSeconds < 60) {
       return '${totalSeconds}秒';
     }
@@ -747,6 +674,7 @@ class _BlackScreenDelaySlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isEnabled = delaySeconds > 0;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -763,13 +691,14 @@ class _BlackScreenDelaySlider extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    Icons.timer_outlined,
-                    color: Colors.grey[400],
+                    Icons.phone_android,
+                    color:
+                        isEnabled ? const Color(0xFF3CC51F) : Colors.grey[500],
                     size: 20,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '息屏时间设定',
+                    'OLED息屏',
                     style: TextStyle(
                       color: Colors.grey[300],
                       fontSize: 15,
@@ -778,24 +707,35 @@ class _BlackScreenDelaySlider extends StatelessWidget {
                   ),
                 ],
               ),
-              Text(
-                _formatDuration(delaySeconds),
-                style: const TextStyle(
-                  color: Color(0xFF3CC51F),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isEnabled
+                      ? const Color(0xFF3CC51F).withValues(alpha: 0.15)
+                      : Colors.grey[800],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _formatDuration(delaySeconds),
+                  style: TextStyle(
+                    color:
+                        isEnabled ? const Color(0xFF3CC51F) : Colors.grey[500],
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 2),
           Slider(
             value: delaySeconds.toDouble(),
             min: _minSeconds.toDouble(),
             max: _maxSeconds.toDouble(),
             activeColor: const Color(0xFF3CC51F),
             inactiveColor: Colors.grey[700],
-            divisions: (_maxSeconds - _minSeconds) ~/ 5,
+            divisions: (_maxSeconds - _minSeconds) ~/ _step,
             label: _formatDuration(delaySeconds),
             onChanged: (v) => onChanged(v.round()),
           ),
@@ -803,14 +743,14 @@ class _BlackScreenDelaySlider extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '5秒',
+                '关闭',
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: 11,
                 ),
               ),
               Text(
-                '10分钟',
+                '2分钟',
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: 11,
