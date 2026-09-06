@@ -173,6 +173,8 @@ class WsStore {
   String _product = '';
   String _serial = '';
 
+  bool _oledBlackScreen = false;
+
   final List<VoidCallback> _listeners = [];
 
   // Getters
@@ -197,6 +199,7 @@ class WsStore {
   String get product => _product;
   String get serial => _serial;
   bool get isConnected => _connected;
+  bool get oledBlackScreen => _oledBlackScreen;
 
   // Setters for fields modified by pages
   set currentOutput(String v) {
@@ -231,6 +234,11 @@ class WsStore {
 
   set pollingRate(int v) {
     _pollingRate = v;
+    _notifyListeners();
+  }
+
+  set oledBlackScreen(bool v) {
+    _oledBlackScreen = v;
     _notifyListeners();
   }
 
@@ -289,6 +297,10 @@ class WsStore {
     _streamSubscription = _channel!.stream.listen(
       (event) {
         if (event == 'update') {
+          if (_oledBlackScreen) {
+            _oledBlackScreen = false;
+            _notifyListeners();
+          }
           requestInfo();
           return;
         }
@@ -296,6 +308,10 @@ class WsStore {
           _waitingForPong = false;
           _pongTimeoutTimer?.cancel();
           return;
+        }
+        if (_oledBlackScreen) {
+          _oledBlackScreen = false;
+          _notifyListeners();
         }
         try {
           final data = _decodeJson(event);

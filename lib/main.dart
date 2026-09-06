@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_tuuzkb/pages/connection_page.dart';
 import 'package:flutter_tuuzkb/pages/home_page.dart';
 import 'package:flutter_tuuzkb/pages/settings_page.dart';
@@ -6,6 +7,13 @@ import 'package:flutter_tuuzkb/store/ws.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  SystemChrome.setSystemUIOverlayStyle(const SystemUIOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+    systemNavigationBarColor: Colors.black,
+    systemNavigationBarIconBrightness: Brightness.light,
+  ));
   runApp(const TuuzKBApp());
 }
 

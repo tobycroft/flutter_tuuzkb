@@ -100,60 +100,85 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF0D0D0D),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Connection status
-              _ConnectionBanner(
-                message: ws.connectionMessage,
-                color: _getStatusColor(),
-              ),
-              SizedBox(height: 12),
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Connection status
+                  _ConnectionBanner(
+                    message: ws.connectionMessage,
+                    color: _getStatusColor(),
+                  ),
+                  SizedBox(height: 12),
 
-              // Output switcher + compact info
-              _OutputAndInfoPanel(
-                outputs: ws.outputs,
-                currentOutput: ws.currentOutput,
-                vid: ws.vid,
-                pid: ws.pid,
-                baud: ws.baud,
-                macmode: ws.macmode,
-                onSwitchOutput: _switchOutput,
-                onTapMac: () => ws.cmdFunc('toggle_macmode'),
-              ),
-              SizedBox(height: 12),
+                  // Output switcher + compact info
+                  _OutputAndInfoPanel(
+                    outputs: ws.outputs,
+                    currentOutput: ws.currentOutput,
+                    vid: ws.vid,
+                    pid: ws.pid,
+                    baud: ws.baud,
+                    macmode: ws.macmode,
+                    onSwitchOutput: _switchOutput,
+                    onTapMac: () => ws.cmdFunc('toggle_macmode'),
+                  ),
+                  SizedBox(height: 12),
 
-              // Mask panel
-              if (ws.maskButton.isNotEmpty) ...[
-                _MaskPanel(keys: ws.maskButton),
-                SizedBox(height: 12),
-              ],
+                  // Mask panel
+                  if (ws.maskButton.isNotEmpty) ...[
+                    _MaskPanel(keys: ws.maskButton),
+                    SizedBox(height: 12),
+                  ],
 
-              // Sliders
-              _SlidersPanel(
-                randomValue: ws.endpointBeforeDelayRandom,
-                beforeValue: ws.endpointBeforeDelay,
-                delayValue: ws.endpointDelay,
-                onRandomChange: (v) => _onSliderChange('random', v),
-                onBeforeChange: (v) => _onSliderChange('beforeDelay', v),
-                onDelayChange: (v) => _onSliderChange('delay', v),
-              ),
-              SizedBox(height: 12),
+                  // Sliders
+                  _SlidersPanel(
+                    randomValue: ws.endpointBeforeDelayRandom,
+                    beforeValue: ws.endpointBeforeDelay,
+                    delayValue: ws.endpointDelay,
+                    onRandomChange: (v) => _onSliderChange('random', v),
+                    onBeforeChange: (v) => _onSliderChange('beforeDelay', v),
+                    onDelayChange: (v) => _onSliderChange('delay', v),
+                  ),
+                  SizedBox(height: 12),
 
-              // Bottom bar: mode buttons
-              _BottomBar(
-                mode: ws.mode,
-                endpointMode: ws.endpointDynamicMode,
-                onModeChange: _setMode,
-                onEndpointChange: _setEndpointMode,
+                  // Bottom bar: mode buttons
+                  _BottomBar(
+                    mode: ws.mode,
+                    endpointMode: ws.endpointDynamicMode,
+                    onModeChange: _setMode,
+                    onEndpointChange: _setEndpointMode,
+                  ),
+                  SizedBox(height: 12),
+
+                  // OLED black screen toggle
+                  _OledBlackScreenToggle(
+                    isEnabled: ws.oledBlackScreen,
+                    onToggle: (v) {
+                      ws.oledBlackScreen = v;
+                    },
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+          // OLED black screen overlay
+          if (ws.oledBlackScreen)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () {
+                  ws.oledBlackScreen = false;
+                },
+                child: Container(
+                  color: Colors.black,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -632,6 +657,72 @@ class _ModeButton extends StatelessWidget {
           label,
           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
         ),
+      ),
+    );
+  }
+}
+
+class _OledBlackScreenToggle extends StatelessWidget {
+  final bool isEnabled;
+  final Function(bool) onToggle;
+
+  const _OledBlackScreenToggle({
+    required this.isEnabled,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Color(0xFF1C1C1E),
+        border: Border.all(color: Color(0xFF2A2A2A)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.phone_android,
+                color: isEnabled ? Color(0xFF3CC51F) : Colors.grey[500],
+                size: 20,
+              ),
+              SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'OLED息屏',
+                    style: TextStyle(
+                      color: Colors.grey[300],
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    isEnabled ? '黑屏已开启' : '黑屏已关闭',
+                    style: TextStyle(
+                      color: isEnabled ? Color(0xFF3CC51F) : Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Switch(
+            value: isEnabled,
+            onChanged: onToggle,
+            activeColor: Color(0xFF3CC51F),
+            activeTrackColor: Color(0xFF3CC51F).withValues(alpha: 0.3),
+            inactiveThumbColor: Colors.grey[500],
+            inactiveTrackColor: Colors.grey[800],
+          ),
+        ],
       ),
     );
   }
