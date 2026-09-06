@@ -1,6 +1,5 @@
 name: Flutter Build
 
-# 触发条件：当代码 push 到 main 分支，或者提 PR 到 main 分支时触发
 on:
   push:
     branches:
@@ -11,7 +10,6 @@ on:
 
 jobs:
   build:
-    # 运行环境：最新版的 Ubuntu 服务器
     runs-on: ubuntu-latest
 
     steps:
@@ -19,7 +17,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 配置 Java 环境（Android 打包必须）
+      # 2. 配置 Java 环境
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -30,7 +28,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable' # 使用稳定版 Flutter
+          channel: 'stable' 
 
       # 4. 获取依赖包
       - name: Install dependencies
@@ -39,3 +37,10 @@ jobs:
       # 5. 构建 Android APK
       - name: Build APK
         run: flutter build apk --release
+        
+      # 6. 上传 APK 提供下载（新增步骤）
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk # 下载时显示的压缩包名称
+          path: build/app/outputs/flutter-apk/app-release.apk # Flutter 默认的 APK 输出路径
