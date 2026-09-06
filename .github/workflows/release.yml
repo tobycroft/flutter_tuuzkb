@@ -1,46 +1,57 @@
-name: Flutter Build
+name: Flutter Release
 
+# 触发条件：允许在 GitHub 网页端手动点击运行（推荐发版时使用）
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+  # 如果你想每次 push 到 main 都自动发布（需确保每次 push 前都改了版本号），取消下面两行的注释：
+  # push:
+  #   branches: [ main ]
+
+# 必须添加权限声明！允许 Action 自动生成 Tag 和创建 Release 页面
+permissions:
+  contents: write
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 拉取仓库代码
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 配置 Java 环境
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      # 3. 配置 Flutter 环境
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable' 
 
-      # 4. 获取依赖包
       - name: Install dependencies
         run: flutter pub get
 
-      # 5. 构建 Android APK
       - name: Build APK
         run: flutter build apk --release
         
-      # 6. 上传 APK 提供下载（新增步骤）
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+      # 1. 从 pubspec.yaml 中提取版本号 (例如 1.0.0+1) 并加上 v 前缀
+      - name: Extract version from pubspec.yaml
+        run: |
+          # 提取 version 字段后面的值
+          VERSION=$(grep '^version: ' pubspec.yaml | awk '{print $2}')
+          # 将类似 v1.0.0+1 的字符串存入环境变量，供下一步使用
+          echo "APP_VERSION=v$VERSION" >> $GITHUB_ENV
+          echo "Extracted version: v$VERSION"
+
+      # 2. 创建 GitHub Release 并上传 APK
+      - name: Create Release and Upload APK
+        uses: softprops/action-gh-release@v2
         with:
-          name: release-apk # 下载时显示的压缩包名称
-          path: build/app/outputs/flutter-apk/app-release.apk # Flutter 默认的 APK 输出路径
+          tag_name: ${{ env.APP_VERSION }}     # 使用提取出的版本号作为 Tag，如 v1.0.0+1
+          name: Release ${{ env.APP_VERSION }} # Release 标题
+          files: build/app/outputs/flutter-apk/app-release.apk # 需要附加的文件
+          generate_release_notes: true         # 自动生成基于 Commit 历史的更新日志
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 默认内置的 Token，无需手动配置
