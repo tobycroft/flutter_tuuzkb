@@ -148,19 +148,15 @@ jobs:
       # 8. Prepare Gradle Wrapper
       #
       # IMPORTANT:
-      # Do NOT use the runner's system Gradle.
-      #
-      # GitHub runner may contain Gradle 9.x, which is incompatible
-# with the Groovy environment used by Flutter 3.47.2.
-      #
-      # We pin Gradle to 8.10.2.
+      # AGP 9.1.0 requires Gradle >= 9.3.1.
+      # We pin Gradle to 9.3.1 to match the wrapper properties.
       # ============================================================
       - name: Prepare Gradle Wrapper
         shell: bash
         run: |
           set -e
 
-          GRADLE_VERSION="8.10.2"
+          GRADLE_VERSION="9.3.1"
           GRADLE_HOME="${RUNNER_TEMP}/gradle-${GRADLE_VERSION}"
           GRADLE_ZIP="${RUNNER_TEMP}/gradle-${GRADLE_VERSION}-bin.zip"
 
@@ -359,6 +355,6 @@ jobs:
 
           ## Gradle
 
-          - Gradle: \`8.10.2\`
+          - Gradle: \`9.3.1\`
           - Java: \`17\`
-          - Flutter: \`3.27.0\`
+          - Flutter: \`3.47.2\`
