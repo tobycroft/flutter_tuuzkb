@@ -1,360 +1,41 @@
-name: Flutter Android Release
+name: Flutter Build
 
+# 触发条件：当代码 push 到 main 分支，或者提 PR 到 main 分支时触发
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-concurrency:
-  group: flutter-release-main
-  cancel-in-progress: false
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  release:
-    name: Build and Release Android
+  build:
+    # 运行环境：最新版的 Ubuntu 服务器
     runs-on: ubuntu-latest
 
     steps:
-      # ============================================================
-      # 1. Checkout
-      # ============================================================
-      - name: Checkout
+      # 1. 拉取仓库代码
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # ============================================================
-      # 2. Setup Java
-      # ============================================================
-      - name: Setup JDK 17
+      # 2. 配置 Java 环境（Android 打包必须）
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: 'zulu'
           java-version: '17'
-          cache: gradle
 
-      # ============================================================
-      # 3. Setup Flutter
-      # ============================================================
+      # 3. 配置 Flutter 环境
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
-          flutter-version: '3.47.2'
-          cache: true
+          channel: 'stable' # 使用稳定版 Flutter
 
-      # ============================================================
-      # 4. Flutter Doctor
-      # ============================================================
-      - name: Flutter Doctor
-        run: |
-          flutter --version
-          flutter doctor -v
+      # 4. 获取依赖包
+      - name: Install dependencies
+        run: flutter pub get
 
-      # ============================================================
-      # 5. Validate Flutter Android Project
-      # ============================================================
-      - name: Validate Flutter Android Project
-        shell: bash
-        run: |
-          set -e
-
-          if [ ! -d "android" ]; then
-            echo "::error::android directory does not exist."
-            exit 1
-          fi
-
-          if [ ! -f "android/settings.gradle" ] && [ ! -f "android/settings.gradle.kts" ]; then
-            echo "::error::android/settings.gradle or android/settings.gradle.kts is missing."
-            exit 1
-          fi
-
-          if [ ! -f "pubspec.yaml" ]; then
-            echo "::error::pubspec.yaml is missing."
-            exit 1
-          fi
-
-          echo "Flutter Android project validation passed."
-
-      # ============================================================
-      # 6. Calculate Next Release Version
-      #
-      # Existing:
-      #   v1.0.0
-      #   v1.0.1
-      #
-      # Next:
-      #   v1.0.2
-      #
-      # The tag will be created automatically by gh release create.
-      # ============================================================
-      - name: Calculate Release Version
-        id: version
-        shell: bash
-        run: |
-          set -e
-
-          git fetch --tags --force
-
-          LAST_TAG="$(
-            git tag -l 'v*.*.*' |
-            sort -V |
-            tail -n 1
-          )"
-
-          if [ -z "$LAST_TAG" ]; then
-            MAJOR=1
-            MINOR=0
-            PATCH=0
-          else
-            VERSION="${LAST_TAG#v}"
-
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-
-            PATCH=$((PATCH + 1))
-          fi
-
-          VERSION="${MAJOR}.${MINOR}.${PATCH}"
-          TAG="v${VERSION}"
-
-          echo "Last tag: ${LAST_TAG:-<none>}"
-          echo "New version: ${VERSION}"
-          echo "New tag: ${TAG}"
-
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-
-      # ============================================================
-      # 7. Generate Android local.properties
-      # ============================================================
-      - name: Prepare local.properties
-        shell: bash
-        run: |
-          set -e
-
-          cat > android/local.properties <<EOF
-          sdk.dir=${ANDROID_SDK_ROOT}
-          flutter.sdk=${FLUTTER_ROOT}
-          EOF
-
-          echo "Generated android/local.properties:"
-          cat android/local.properties
-
-      # ============================================================
-      # 8. Prepare Gradle Wrapper
-      #
-      # IMPORTANT:
-      # AGP 9.1.0 requires Gradle >= 9.3.1.
-      # We pin Gradle to 9.3.1 to match the wrapper properties.
-      # ============================================================
-      - name: Prepare Gradle Wrapper
-        shell: bash
-        run: |
-          set -e
-
-          GRADLE_VERSION="9.3.1"
-          GRADLE_HOME="${RUNNER_TEMP}/gradle-${GRADLE_VERSION}"
-          GRADLE_ZIP="${RUNNER_TEMP}/gradle-${GRADLE_VERSION}-bin.zip"
-
-          echo "Required Gradle version: ${GRADLE_VERSION}"
-
-          # ----------------------------------------------------------
-          # If wrapper already exists, use it.
-          # ----------------------------------------------------------
-          if [ -f "android/gradlew" ] &&
-             [ -f "android/gradle/wrapper/gradle-wrapper.properties" ]; then
-
-            echo "Gradle wrapper already exists."
-
-            chmod +x android/gradlew
-
-          else
-
-            echo "Gradle wrapper is missing."
-            echo "Downloading Gradle ${GRADLE_VERSION}..."
-
-            rm -rf "${GRADLE_HOME}"
-
-            curl -fsSL \
-              "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" \
-              -o "${GRADLE_ZIP}"
-
-            unzip -q "${GRADLE_ZIP}" -d "${RUNNER_TEMP}"
-
-            echo "Generating Gradle wrapper..."
-
-            cd android
-
-            "${RUNNER_TEMP}/gradle-${GRADLE_VERSION}/bin/gradle" \
-              --no-daemon \
-              wrapper \
-              --gradle-version "${GRADLE_VERSION}" \
-              --distribution-type all
-
-            cd ..
-
-          fi
-
-          chmod +x android/gradlew
-
-          echo
-          echo "Gradle wrapper properties:"
-          cat android/gradle/wrapper/gradle-wrapper.properties
-
-          echo
-          echo "Gradle wrapper version:"
-          cd android
-          ./gradlew --version
-
-      # ============================================================
-      # 9. Flutter Dependencies
-      # ============================================================
-      - name: Flutter Pub Get
-        run: |
-          flutter pub get
-
-      # ============================================================
-      # 10. Build APK
-      # ============================================================
+      # 5. 构建 Android APK
       - name: Build APK
-        shell: bash
-        env:
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -e
-
-          echo "Building APK..."
-          echo "Version: ${RELEASE_VERSION}"
-          echo "Build number: ${GITHUB_RUN_NUMBER}"
-
-          flutter build apk \
-            --release \
-            --build-name="${RELEASE_VERSION}" \
-            --build-number="${GITHUB_RUN_NUMBER}"
-
-      # ============================================================
-      # 12. Build AAB
-      # ============================================================
-      - name: Build App Bundle
-        shell: bash
-        env:
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -e
-
-          echo "Building AAB..."
-          echo "Version: ${RELEASE_VERSION}"
-          echo "Build number: ${GITHUB_RUN_NUMBER}"
-
-          flutter build appbundle \
-            --release \
-            --build-name="${RELEASE_VERSION}" \
-            --build-number="${GITHUB_RUN_NUMBER}"
-
-      # ============================================================
-      # 13. Prepare Release Files
-      # ============================================================
-      - name: Prepare Release Files
-        shell: bash
-        env:
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -e
-
-          mkdir -p release
-
-          cp build/app/outputs/flutter-apk/app-release.apk \
-            "release/flutter-tuuzkb-${RELEASE_VERSION}.apk"
-
-          cp build/app/outputs/bundle/release/app-release.aab \
-            "release/flutter-tuuzkb-${RELEASE_VERSION}.aab"
-
-          echo
-          echo "Release files:"
-          ls -lh release/
-
-      # ============================================================
-      # 14. Upload APK Artifact
-      # ============================================================
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: flutter-android-apk
-          path: release/*.apk
-          if-no-files-found: error
-
-      # ============================================================
-      # 15. Upload AAB Artifact
-      # ============================================================
-      - name: Upload AAB Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: flutter-android-aab
-          path: release/*.aab
-          if-no-files-found: error
-
-      # ============================================================
-      # 16. Create GitHub Release
-      #
-      # gh release create automatically:
-      #
-      #   1. creates the Git tag
-      #   2. points the tag to the current commit
-      #   3. creates the GitHub Release
-      #   4. uploads APK/AAB
-      #
-      # Therefore you do NOT need to manually create a tag.
-      # ============================================================
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
-        shell: bash
-        run: |
-          set -e
-
-          echo "Creating GitHub Release..."
-          echo "Tag: ${TAG}"
-          echo "Target: ${GITHUB_SHA}"
-
-          gh release create "${TAG}" \
-            release/*.apk \
-            release/*.aab \
-            --target "${GITHUB_SHA}" \
-            --title "${TAG}" \
-            --generate-notes \
-            --latest
-
-      # ============================================================
-      # 17. Summary
-      # ============================================================
-      - name: Release Summary
-        env:
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
-          TAG: ${{ steps.version.outputs.tag }}
-        run: |
-          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
-
-          # Flutter Android Release
-
-          ## Release
-
-          - Version: \`${RELEASE_VERSION}\`
-          - Tag: \`${TAG}\`
-          - Build Number: \`${GITHUB_RUN_NUMBER}\`
-          - Commit: \`${GITHUB_SHA}\`
-
-          ## Artifacts
-
-          - APK
-          - AAB
-
-          ## Gradle
-
-          - Gradle: \`9.3.1\`
-          - Java: \`17\`
-          - Flutter: \`3.47.2\`
+        run: flutter build apk --release
