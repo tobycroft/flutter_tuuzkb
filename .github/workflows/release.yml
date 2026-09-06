@@ -2,8 +2,8 @@ name: Flutter Auto Release
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [ main ]
+  push:
+    branches: [ main ] # 取消这里的注释，以后每次 push main 都会自动打新包发布
 
 permissions:
   contents: write
