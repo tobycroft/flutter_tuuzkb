@@ -560,7 +560,18 @@ class WsStore {
       sb.write(']');
       return sb.toString();
     }
-    return '"$v"';
+    if (v is Map) {
+      final sb = StringBuffer('{');
+      var first = true;
+      for (final entry in v.entries) {
+        if (!first) sb.write(',');
+        first = false;
+        sb.write('"${_escStr(entry.key.toString())}":${_encVal(entry.value)}');
+      }
+      sb.write('}');
+      return sb.toString();
+    }
+    return '"${_escStr(v.toString())}"';
   }
 
   String _escStr(String s) {

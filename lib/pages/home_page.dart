@@ -56,20 +56,24 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onSliderChange(String field, int value) {
+    String wsField;
     switch (field) {
       case 'random':
         ws.setEndpointBeforeDelayRandom(value);
+        wsField = 'Endpoint_BeforeDelay_Random';
         break;
       case 'beforeDelay':
         ws.setEndpointBeforeDelay(value);
+        wsField = 'Endpoint_BeforeDelay';
         break;
       case 'delay':
         ws.setEndpointDelay(value);
+        wsField = 'Endpoint_delay';
         break;
+      default:
+        return;
     }
-    final snap = _getSnapshot();
-    snap[field] = value;
-    ws.requestSemiConfig(field, snap);
+    ws.requestSemiConfig(wsField, _getSnapshot());
   }
 
   void _setMode(int mode) {
