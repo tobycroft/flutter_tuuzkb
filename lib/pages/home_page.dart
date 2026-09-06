@@ -160,6 +160,15 @@ class _HomePageState extends State<HomePage> {
                   ws.oledBlackScreen = v;
                 },
               ),
+              const SizedBox(height: 12),
+
+              // Black screen delay slider
+              _BlackScreenDelaySlider(
+                delaySeconds: ws.blackScreenDelaySeconds,
+                onChanged: (v) {
+                  ws.setBlackScreenDelay(v);
+                },
+              ),
             ],
           ),
         ),
@@ -705,6 +714,109 @@ class _OledBlackScreenToggle extends StatelessWidget {
             activeTrackColor: Color(0xFF3CC51F).withValues(alpha: 0.3),
             inactiveThumbColor: Colors.grey[500],
             inactiveTrackColor: Colors.grey[800],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BlackScreenDelaySlider extends StatelessWidget {
+  final int delaySeconds;
+  final Function(int) onChanged;
+
+  static const int _minSeconds = 5;
+  static const int _maxSeconds = 600;
+
+  const _BlackScreenDelaySlider({
+    required this.delaySeconds,
+    required this.onChanged,
+  });
+
+  String _formatDuration(int totalSeconds) {
+    if (totalSeconds < 60) {
+      return '${totalSeconds}秒';
+    }
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    if (seconds == 0) {
+      return '${minutes}分钟';
+    }
+    return '${minutes}分${seconds}秒';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        border: Border.all(color: const Color(0xFF2A2A2A)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.timer_outlined,
+                    color: Colors.grey[400],
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '息屏时间设定',
+                    style: TextStyle(
+                      color: Colors.grey[300],
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                _formatDuration(delaySeconds),
+                style: const TextStyle(
+                  color: Color(0xFF3CC51F),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Slider(
+            value: delaySeconds.toDouble(),
+            min: _minSeconds.toDouble(),
+            max: _maxSeconds.toDouble(),
+            activeColor: const Color(0xFF3CC51F),
+            inactiveColor: Colors.grey[700],
+            divisions: (_maxSeconds - _minSeconds) ~/ 5,
+            label: _formatDuration(delaySeconds),
+            onChanged: (v) => onChanged(v.round()),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '5秒',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 11,
+                ),
+              ),
+              Text(
+                '10分钟',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 11,
+                ),
+              ),
+            ],
           ),
         ],
       ),

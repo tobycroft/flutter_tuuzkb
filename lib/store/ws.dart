@@ -176,6 +176,7 @@ class WsStore {
   bool _oledBlackScreen = false;
   bool _isScreenBlack = false;
   Timer? _blackScreenTimer;
+  int _blackScreenDelaySeconds = 120;
 
   final List<VoidCallback> _listeners = [];
 
@@ -203,6 +204,7 @@ class WsStore {
   bool get isConnected => _connected;
   bool get oledBlackScreen => _oledBlackScreen;
   bool get isScreenBlack => _isScreenBlack;
+  int get blackScreenDelaySeconds => _blackScreenDelaySeconds;
 
   // Setters for fields modified by pages
   set currentOutput(String v) {
@@ -253,7 +255,7 @@ class WsStore {
 
   void _startBlackScreenTimer() {
     _cancelBlackScreenTimer();
-    _blackScreenTimer = Timer(const Duration(minutes: 2), () {
+    _blackScreenTimer = Timer(Duration(seconds: _blackScreenDelaySeconds), () {
       _isScreenBlack = true;
       _notifyListeners();
     });
@@ -262,6 +264,34 @@ class WsStore {
   void _cancelBlackScreenTimer() {
     _blackScreenTimer?.cancel();
     _blackScreenTimer = null;
+  }
+
+  void wakeScreen() {
+    if (_isScreenBlack) {
+      _isScreenBlack = false;
+      _notifyListeners();
+    }
+    if (_oledBlackScreen) {
+      _startBlackScreenTimer();
+    }
+  }
+
+  Future<void> setBlackScreenDelay(int seconds) async {
+    _blackScreenDelaySeconds = seconds;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('black_screen_delay', seconds);
+    if (_oledBlackScreen && !_isScreenBlack) {
+      _startBlackScreenTimer();
+    }
+    _notifyListeners();
+  }
+
+  Future<void> loadBlackScreenDelay() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getInt('black_screen_delay');
+    if (saved != null && saved >= 5 && saved <= 600) {
+      _blackScreenDelaySeconds = saved;
+    }
   }
 
   void _onNonPingPongData() {
@@ -473,6 +503,7 @@ class WsStore {
   Future<void> reconnect() async {
     final prefs = await SharedPreferences.getInstance();
     final ip = prefs.getString('config_ip') ?? '';
+    await loadBlackScreenDelay();
     if (ip.isNotEmpty) {
       disconnectWebSocket();
       connectWebSocket(ip);

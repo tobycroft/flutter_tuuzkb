@@ -105,7 +105,7 @@ class _TuuzKBAppState extends State<TuuzKBApp> {
             Positioned.fill(
               child: GestureDetector(
                 onTap: () {
-                  WsStore().oledBlackScreen = false;
+                  WsStore().wakeScreen();
                 },
                 child: Container(color: Colors.black),
               ),
