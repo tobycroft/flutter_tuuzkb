@@ -246,8 +246,9 @@ class _OutputAndInfoPanel extends StatelessWidget {
                             backgroundColor: selected
                                 ? Color(0xFF3CC51F)
                                 : Color(0xFF2C2C2E),
-                            foregroundColor:
-                                selected ? Colors.white : Color(0xFFDDDDDD),
+                            foregroundColor: selected
+                                ? Colors.white
+                                : Color(0xFFDDDDDD),
                             padding: EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -662,14 +663,14 @@ class _BlackScreenDelaySlider extends StatelessWidget {
   String _formatDuration(int totalSeconds) {
     if (totalSeconds == 0) return '关闭';
     if (totalSeconds < 60) {
-      return '${totalSeconds}秒';
+      return '$totalSeconds秒';
     }
     final minutes = totalSeconds ~/ 60;
     final seconds = totalSeconds % 60;
     if (seconds == 0) {
-      return '${minutes}分钟';
+      return '$minutes分钟';
     }
-    return '${minutes}分${seconds}秒';
+    return '$minutes分$seconds秒';
   }
 
   @override
@@ -692,8 +693,9 @@ class _BlackScreenDelaySlider extends StatelessWidget {
                 children: [
                   Icon(
                     Icons.phone_android,
-                    color:
-                        isEnabled ? const Color(0xFF3CC51F) : Colors.grey[500],
+                    color: isEnabled
+                        ? const Color(0xFF3CC51F)
+                        : Colors.grey[500],
                     size: 20,
                   ),
                   const SizedBox(width: 8),
@@ -708,8 +710,10 @@ class _BlackScreenDelaySlider extends StatelessWidget {
                 ],
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: isEnabled
                       ? const Color(0xFF3CC51F).withValues(alpha: 0.15)
@@ -719,8 +723,9 @@ class _BlackScreenDelaySlider extends StatelessWidget {
                 child: Text(
                   _formatDuration(delaySeconds),
                   style: TextStyle(
-                    color:
-                        isEnabled ? const Color(0xFF3CC51F) : Colors.grey[500],
+                    color: isEnabled
+                        ? const Color(0xFF3CC51F)
+                        : Colors.grey[500],
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
@@ -744,17 +749,11 @@ class _BlackScreenDelaySlider extends StatelessWidget {
             children: [
               Text(
                 '关闭',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 11,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 11),
               ),
               Text(
                 '2分钟',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 11,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 11),
               ),
             ],
           ),
