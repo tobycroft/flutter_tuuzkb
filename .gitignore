@@ -46,5 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
-android/build/reports/problems/problems-report.html
+
+# Local machine specific files (SDK paths etc.), do not commit
 /local.properties
