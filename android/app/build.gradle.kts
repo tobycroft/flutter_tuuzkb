@@ -47,3 +47,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // FileProvider 用于向系统安装器共享下载的 APK（1.17.0 兼容 Flutter 默认的 compileSdk 36）
+    implementation("androidx.core:core-ktx:1.17.0")
+}

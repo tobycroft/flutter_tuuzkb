@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tuuzkb/pages/connection_page.dart';
 import 'package:flutter_tuuzkb/pages/home_page.dart';
 import 'package:flutter_tuuzkb/pages/settings_page.dart';
+import 'package:flutter_tuuzkb/pages/update_dialog.dart';
+import 'package:flutter_tuuzkb/store/update.dart';
 import 'package:flutter_tuuzkb/store/ws.dart';
 
 void main() {
@@ -27,6 +31,7 @@ class TuuzKBApp extends StatefulWidget {
 class _TuuzKBAppState extends State<TuuzKBApp> {
   int _currentIndex = 0;
   void Function()? _unsubscribe;
+  void Function()? _unsubscribeUpdate;
 
   final List<Widget> _pages = [
     const HomePage(),
@@ -40,13 +45,30 @@ class _TuuzKBAppState extends State<TuuzKBApp> {
     _unsubscribe = WsStore().subscribe(_onStateChange);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       WsStore().reconnect();
+      _checkUpdate();
     });
   }
 
   @override
   void dispose() {
     _unsubscribe?.call();
+    _unsubscribeUpdate?.call();
     super.dispose();
+  }
+
+  /// 启动时检查 GitHub Release 是否有新版本，有则弹窗提示更新
+  Future<void> _checkUpdate() async {
+    // 仅 Android 支持应用内下载安装，避免测试/桌面端发起无效请求
+    if (!Platform.isAndroid) return;
+    final hasUpdate = await UpdateStore().checkForUpdate();
+    if (!hasUpdate || !mounted) return;
+    _unsubscribeUpdate = UpdateStore().subscribe(_onStateChange);
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const UpdateDialog(),
+    ).then((_) => _unsubscribeUpdate?.call());
   }
 
   void _onStateChange() {

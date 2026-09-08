@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider 可访问的目录，用于向系统安装器共享下载的 APK -->
+<paths>
+    <cache-path
+        name="apk"
+        path="apk/" />
+</paths>
