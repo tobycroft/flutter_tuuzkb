@@ -78,7 +78,7 @@ class _TuuzKBAppState extends State<TuuzKBApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'TUU ZKB',
+      title: 'Tuuzkb',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
