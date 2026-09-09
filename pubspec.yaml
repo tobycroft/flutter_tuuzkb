@@ -54,7 +54,9 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
 
 flutter_launcher_icons:
-  image_path: "assets/icon/icon.jpeg"
+  # 方形图标（安装器/设置里显示的那张）用 tool/gen_square_icon_with_bg.py
+  # 合成的「品牌色底 + tuuz」版本，与桌面自适应图标底色保持一致
+  image_path: "assets/icon/icon_brand_bg.png"
   android: true
   min_sdk_android: 24
   # Android 8.0+ 自适应图标：背景用品牌色纯色，foreground 用「抠掉黑底」的
