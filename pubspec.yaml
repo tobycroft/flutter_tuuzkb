@@ -57,9 +57,13 @@ flutter_launcher_icons:
   image_path: "assets/icon/icon.jpeg"
   android: true
   min_sdk_android: 24
-  # Android 8.0+ 自适应图标：前景为缩进安全区的 LOGO，背景取图标本身的纯黑底色
-  adaptive_icon_background: "#000000"
+  # Android 8.0+ 自适应图标：背景与前景使用同一张完整 LOGO 图（自带黑色底色），
+  # 合成后即为原始 PNG，避免桌面图标被 Launcher 再加一层黑底/遮罩导致跟应用内图标不一致。
+  adaptive_icon_background: "assets/icon/app_icon_foreground.png"
   adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  # 去掉默认 16% 的安全区内缩，让前景铺满整个 108dp 图标区域，
+  # 否则桌面图标会比安装时看到的图标明显更小。
+  adaptive_icon_foreground_inset: 0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
