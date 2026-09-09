@@ -1,4 +1,4 @@
-package com.example.flutter_tuuzkb
+package com.tuuz.keyboard
 
 import android.content.Intent
 import android.net.Uri
