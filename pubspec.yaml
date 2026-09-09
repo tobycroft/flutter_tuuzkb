@@ -57,12 +57,15 @@ flutter_launcher_icons:
   image_path: "assets/icon/icon.jpeg"
   android: true
   min_sdk_android: 24
-  # Android 8.0+ 自适应图标：背景与前景使用同一张完整 LOGO 图（自带黑色底色），
-  # 合成后即为原始 PNG，避免桌面图标被 Launcher 再加一层黑底/遮罩导致跟应用内图标不一致。
-  adaptive_icon_background: "assets/icon/app_icon_foreground.png"
-  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
-  # 去掉默认 16% 的安全区内缩，让前景铺满整个 108dp 图标区域，
-  # 否则桌面图标会比安装时看到的图标明显更小。
+  # Android 8.0+ 自适应图标：背景用品牌色纯色，foreground 用「抠掉黑底」的
+  # 透明版前景（由 tool/gen_adaptive_foreground.py 从 app_icon_foreground.png 生成），
+  # 避免不透明前景把品牌背景色完全盖住。
+  # 重新生成顺序：先跑 python3 tool/gen_adaptive_foreground.py，再跑下面的 dart 命令。
+  adaptive_icon_background: "#2E7D32"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground_transparent.png"
+  # 前景铺满 108dp：透明前景的 Logo 占 51.5% 宽 → 桌面可见区 72dp 中占约 77%，
+  # 与安装预览（mipmap/ic_launcher.png 由 icon.jpeg 生成，Logo 占 73.3%）基本一致，
+  # 同时圆形/方角 mask 不会裁切到 Logo。
   adaptive_icon_foreground_inset: 0
 
 # For information on the generic Dart part of this file, see the
