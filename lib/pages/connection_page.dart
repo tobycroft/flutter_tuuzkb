@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../store/ws.dart';
+import '../widgets/update_panel.dart';
 
 class ConnectionPage extends StatefulWidget {
   const ConnectionPage({super.key});
@@ -196,6 +197,11 @@ class _ConnectionPageState extends State<ConnectionPage> {
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
+
+              // App update
+              _SectionTitle('软件更新'),
+              const UpdatePanel(),
               const SizedBox(height: 20),
             ],
           ),

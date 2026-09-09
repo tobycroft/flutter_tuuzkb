@@ -2,9 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../store/update.dart';
 import '../store/ws.dart';
-import 'update_dialog.dart';
+import '../widgets/update_panel.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -347,7 +346,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
               // App update
               _SectionTitle('软件更新'),
-              _UpdatePanel(),
+              const UpdatePanel(),
               SizedBox(height: 20),
             ],
           ),
@@ -722,131 +721,6 @@ class _StyledTextField extends StatelessWidget {
         ),
         filled: true,
         fillColor: Color(0xFF2C2C2E),
-      ),
-    );
-  }
-}
-
-/// 软件更新面板：展示当前版本，支持手动检查更新
-class _UpdatePanel extends StatefulWidget {
-  const _UpdatePanel();
-
-  @override
-  State<_UpdatePanel> createState() => _UpdatePanelState();
-}
-
-class _UpdatePanelState extends State<_UpdatePanel> {
-  final UpdateStore update = UpdateStore();
-
-  @override
-  void initState() {
-    super.initState();
-    update.subscribe(_onStateChange);
-    update.init();
-  }
-
-  @override
-  void dispose() {
-    update.unsubscribe(_onStateChange);
-    super.dispose();
-  }
-
-  void _onStateChange() {
-    if (!mounted) return;
-    setState(() {});
-  }
-
-  void _checkUpdate() async {
-    final hasUpdate = await update.checkForUpdate();
-    if (!mounted || !hasUpdate) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const UpdateDialog(),
-    );
-  }
-
-  String get _statusText {
-    switch (update.status) {
-      case UpdateStore.statusChecking:
-        return '正在检查更新……';
-      case UpdateStore.statusUpToDate:
-        return '已是最新版本';
-      case UpdateStore.statusAvailable:
-        return '发现新版本 v${update.latestVersion}';
-      case UpdateStore.statusDownloading:
-        return '正在下载 ${(update.progress * 100).toStringAsFixed(0)}%';
-      case UpdateStore.statusError:
-        return update.errorMessage;
-      default:
-        return '点击"检查更新"获取最新版本';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final busy = update.status == UpdateStore.statusChecking ||
-        update.status == UpdateStore.statusDownloading;
-    return Container(
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Color(0xFF2C2C2E),
-        border: Border.all(color: Color(0xFF3A3A3C)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                '当前版本',
-                style: TextStyle(color: Colors.grey[500], fontSize: 13),
-              ),
-              SizedBox(width: 12),
-              Text(
-                update.currentVersion.isEmpty ? '未知' : 'v${update.currentVersion}',
-                style: TextStyle(
-                  color: Colors.grey[200],
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'Courier New',
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 8),
-          Text(
-            _statusText,
-            style: TextStyle(
-              color: update.status == UpdateStore.statusError
-                  ? Color(0xFFFF6B6B)
-                  : update.hasUpdate
-                      ? Color(0xFF3CC51F)
-                      : Colors.grey[400],
-              fontSize: 12,
-            ),
-          ),
-          SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: busy ? null : _checkUpdate,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF3CC51F),
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text(
-                busy ? '请稍候' : '检查更新',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
