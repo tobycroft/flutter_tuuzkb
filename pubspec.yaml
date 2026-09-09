@@ -63,7 +63,7 @@ flutter_launcher_icons:
   # 透明版前景（由 tool/gen_adaptive_foreground.py 从 app_icon_foreground.png 生成），
   # 避免不透明前景把品牌背景色完全盖住。
   # 重新生成顺序：先跑 python3 tool/gen_adaptive_foreground.py，再跑下面的 dart 命令。
-  adaptive_icon_background: "#2E7D32"
+  adaptive_icon_background: "#000000"
   adaptive_icon_foreground: "assets/icon/app_icon_foreground_transparent.png"
   # 前景铺满 108dp：透明前景的 Logo 占 51.5% 宽 → 桌面可见区 72dp 中占约 77%，
   # 与安装预览（mipmap/ic_launcher.png 由 icon.jpeg 生成，Logo 占 73.3%）基本一致，
